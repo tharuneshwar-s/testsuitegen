@@ -1,0 +1,162 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Warehouse Inventory API",
+    "description": "A sample API for testing Array & Object Constraints (Nested Structures).",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/shipments/bulk": {
+      "post": {
+        "tags": ["Shipments"],
+        "summary": "Create Shipment",
+        "description": "Create a bulk shipment.\nTests:\n- BOUNDARY_MIN/MAX_ITEMS (items, tags)\n- ARRAY_NOT_UNIQUE (tags - passing duplicates)\n- ARRAY_ITEM_TYPE_VIOLATION (items - passing strings instead of objects)",
+        "operationId": "create_shipment_shipments_bulk_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Shipment" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/products/specs": {
+      "post": {
+        "tags": ["Products"],
+        "summary": "Create Product",
+        "description": "Register product specifications.\nTests:\n- ADDITIONAL_PROPERTY_NOT_ALLOWED (specs - sending extra fields)\n- REQUIRED_FIELD_MISSING (voltage, amperage)\n- OBJECT_VALUE_TYPE_VIOLATION (dimensions - sending list instead of dict)",
+        "operationId": "create_product_products_specs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Product" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": { "$ref": "#/components/schemas/ValidationError" },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Item": {
+        "properties": {
+          "sku": {
+            "type": "string",
+            "maxLength": 20,
+            "minLength": 5,
+            "title": "Sku"
+          },
+          "qty": { "type": "integer", "minimum": 1.0, "title": "Qty" }
+        },
+        "type": "object",
+        "required": ["sku", "qty"],
+        "title": "Item"
+      },
+      "Product": {
+        "properties": {
+          "name": { "type": "string", "title": "Name" },
+          "specs": { "$ref": "#/components/schemas/TechnicalSpecs" }
+        },
+        "type": "object",
+        "required": ["name", "specs"],
+        "title": "Product"
+      },
+      "Shipment": {
+        "properties": {
+          "shipment_id": { "type": "string", "title": "Shipment Id" },
+          "items": {
+            "items": { "$ref": "#/components/schemas/Item" },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Items",
+            "description": "List of items in shipment"
+          },
+          "tags": {
+            "items": { "type": "string" },
+            "type": "array",
+            "maxItems": 5,
+            "minItems": 1,
+            "uniqueItems": true,
+            "title": "Tags",
+            "description": "Unique tags for shipment"
+          }
+        },
+        "type": "object",
+        "required": ["shipment_id", "items", "tags"],
+        "title": "Shipment"
+      },
+      "TechnicalSpecs": {
+        "properties": {
+          "voltage": { "type": "integer", "title": "Voltage" },
+          "amperage": { "type": "number", "title": "Amperage" },
+          "dimensions": {
+            "additionalProperties": { "type": "number" },
+            "type": "object",
+            "title": "Dimensions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["voltage", "amperage", "dimensions"],
+        "title": "TechnicalSpecs"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": { "anyOf": [{ "type": "string" }, { "type": "integer" }] },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": { "type": "string", "title": "Message" },
+          "type": { "type": "string", "title": "Error Type" }
+        },
+        "type": "object",
+        "required": ["loc", "msg", "type"],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

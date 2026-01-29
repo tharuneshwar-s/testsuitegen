@@ -1,0 +1,149 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Fintech Transaction API",
+    "description": "A sample API for testing Numeric Constraints (Integer & Number).",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/transfers/create": {
+      "post": {
+        "tags": ["Transfers"],
+        "summary": "Create Transfer",
+        "description": "Initiate a money transfer.\nTests:\n- BOUNDARY_MIN_MINUS_ONE (amount, accounts)\n- BOUNDARY_MAX_PLUS_ONE (amount, accounts)\n- NOT_MULTIPLE_OF (amount)\n- TYPE_VIOLATION (amount - strings)",
+        "operationId": "create_transfer_transfers_create_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/TransferRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets/limit": {
+      "post": {
+        "tags": ["Wallet"],
+        "summary": "Update Limit",
+        "description": "Update wallet limits.\nTests:\n- BOUNDARY_MIN_MINUS_ONE (daily_limit < 0, risk_score < 0.0)\n- BOUNDARY_MAX_PLUS_ONE (daily_limit > 5000, risk_score > 1.0)\n- TYPE_VIOLATION (daily_limit - float/string)",
+        "operationId": "update_limit_wallets_limit_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LimitUpdate" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": { "application/json": { "schema": {} } }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": { "$ref": "#/components/schemas/ValidationError" },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "LimitUpdate": {
+        "properties": {
+          "daily_limit": {
+            "type": "integer",
+            "maximum": 5000.0,
+            "minimum": 0.0,
+            "title": "Daily Limit",
+            "description": "Daily transaction limit."
+          },
+          "risk_score": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Risk Score",
+            "description": "User risk score (0.0 to 1.0)"
+          }
+        },
+        "type": "object",
+        "required": ["daily_limit", "risk_score"],
+        "title": "LimitUpdate"
+      },
+      "TransferRequest": {
+        "properties": {
+          "amount": {
+            "type": "number",
+            "multipleOf": 0.01,
+            "maximum": 10000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Amount",
+            "description": "Transfer amount. Tests min/max boundaries and decimal precision."
+          },
+          "from_account": {
+            "type": "integer",
+            "maximum": 99999.0,
+            "minimum": 10000.0,
+            "title": "From Account",
+            "description": "Source account ID (5 digits)"
+          },
+          "to_account": {
+            "type": "integer",
+            "maximum": 99999.0,
+            "minimum": 10000.0,
+            "title": "To Account",
+            "description": "Destination account ID (5 digits)"
+          }
+        },
+        "type": "object",
+        "required": ["amount", "from_account", "to_account"],
+        "title": "TransferRequest"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": { "anyOf": [{ "type": "string" }, { "type": "integer" }] },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": { "type": "string", "title": "Message" },
+          "type": { "type": "string", "title": "Error Type" }
+        },
+        "type": "object",
+        "required": ["loc", "msg", "type"],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

@@ -1,0 +1,41 @@
+# Environment variables
+.env
+
+# Python
+venv/
+env/
+.env.local
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# Generated artifacts
+artifacts/
+--output/
+reports/
+
+# OS
+.DS_Store
+Thumbs.db
+

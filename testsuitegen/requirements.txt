@@ -1,0 +1,23 @@
+# requirements.txt
+pyyaml
+jsonschema
+tree-sitter
+tree-sitter-python
+tree-sitter-javascript
+tree-sitter-typescript
+jinja2
+black
+python-dotenv
+fastapi
+requests
+uvicorn
+pydantic
+
+# LLM Provider SDKs
+google-generativeai
+groq
+openai
+airllm
+transformers==4.48.0
+optimum==1.17.0 
+vllm

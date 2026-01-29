@@ -1,0 +1,36 @@
+openapi: 3.0.3
+info:
+  title: User API (Easy)
+  version: 1.0.0
+
+paths:
+  /user:
+    post:
+      summary: Create a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - name
+                - age
+              properties:
+                name:
+                  type: string
+                age:
+                  type: integer
+                active:
+                  type: boolean
+      responses:
+        "200":
+          description: User created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string

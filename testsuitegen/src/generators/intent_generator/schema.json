@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "required": ["intent", "target", "expected"],
+  "properties": {
+    "intent": { "type": "string" },
+    "target": { "type": "string" },
+    "field": { "type": "string" },
+    "expected": { "type": "string" },
+    "notes": { "type": "string" }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+python-jose[cryptography]
+aiofiles
+slowapi
+supabase
+python-dotenv

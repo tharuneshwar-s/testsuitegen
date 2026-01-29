@@ -1,0 +1,54 @@
+openapi: 3.0.3
+info:
+  title: Order API (Medium)
+  version: 1.0.0
+
+paths:
+  /order:
+    post:
+      summary: Create an order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - orderId
+                - items
+              properties:
+                orderId:
+                  type: string
+                items:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - sku
+                      - quantity
+                    properties:
+                      sku:
+                        type: string
+                      quantity:
+                        type: integer
+                discount:
+                  oneOf:
+                    - type: integer
+                    - type: string
+                metadata:
+                  type: object
+                  additionalProperties:
+                    type: string
+      responses:
+        "200":
+          description: Order accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
