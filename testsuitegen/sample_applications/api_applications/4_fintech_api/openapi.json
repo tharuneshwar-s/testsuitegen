@@ -2,20 +2,24 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Fintech Transaction API",
-    "description": "A sample API for testing Numeric Constraints (Integer & Number).",
-    "version": "1.0.0"
+    "description": "A comprehensive sample API for testing Numeric Constraints, Realtime Features, and Security Intents.",
+    "version": "2.0.0"
   },
   "paths": {
-    "/transfers/create": {
+    "/users": {
       "post": {
-        "tags": ["Transfers"],
-        "summary": "Create Transfer",
-        "description": "Initiate a money transfer.\nTests:\n- BOUNDARY_MIN_MINUS_ONE (amount, accounts)\n- BOUNDARY_MAX_PLUS_ONE (amount, accounts)\n- NOT_MULTIPLE_OF (amount)\n- TYPE_VIOLATION (amount - strings)",
-        "operationId": "create_transfer_transfers_create_post",
+        "tags": [
+          "Users"
+        ],
+        "summary": "Create User",
+        "description": "Create a new user account. Tests: REQUIRED_FIELD_MISSING, TYPE_VIOLATION, PATTERN_MISMATCH, BOUNDARY_MIN/MAX.",
+        "operationId": "create_user_users_post",
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/TransferRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
             }
           },
           "required": true
@@ -23,13 +27,141 @@
         "responses": {
           "201": {
             "description": "Successful Response",
-            "content": { "application/json": { "schema": {} } }
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{user_id}": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get User",
+        "description": "Get user details. Tests: RESOURCE_NOT_FOUND.",
+        "operationId": "get_user_users__user_id__get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/transfers/create": {
+      "post": {
+        "tags": [
+          "Transfers"
+        ],
+        "summary": "Create Transfer",
+        "description": "Initiate a money transfer.\nTests: REQUIRED_FIELD_MISSING, TYPE_VIOLATION, BOUNDARY_MIN/MAX, NOT_MULTIPLE_OF.",
+        "operationId": "create_transfer_transfers_create_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/transfers/{transfer_id}": {
+      "get": {
+        "tags": [
+          "Transfers"
+        ],
+        "summary": "Get Transfer",
+        "description": "Get transfer status. Tests: RESOURCE_NOT_FOUND.",
+        "operationId": "get_transfer_transfers__transfer_id__get",
+        "parameters": [
+          {
+            "name": "transfer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Transfer Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
               }
             }
           }
@@ -38,14 +170,18 @@
     },
     "/wallets/limit": {
       "post": {
-        "tags": ["Wallet"],
+        "tags": [
+          "Wallet"
+        ],
         "summary": "Update Limit",
-        "description": "Update wallet limits.\nTests:\n- BOUNDARY_MIN_MINUS_ONE (daily_limit < 0, risk_score < 0.0)\n- BOUNDARY_MAX_PLUS_ONE (daily_limit > 5000, risk_score > 1.0)\n- TYPE_VIOLATION (daily_limit - float/string)",
+        "description": "Update wallet limits.\nTests: REQUIRED_FIELD_MISSING, TYPE_VIOLATION, BOUNDARY_MIN/MAX.",
         "operationId": "update_limit_wallets_limit_post",
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/LimitUpdate" }
+              "schema": {
+                "$ref": "#/components/schemas/LimitUpdate"
+              }
             }
           },
           "required": true
@@ -53,13 +189,19 @@
         "responses": {
           "200": {
             "description": "Successful Response",
-            "content": { "application/json": { "schema": {} } }
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
               }
             }
           }
@@ -72,7 +214,9 @@
       "HTTPValidationError": {
         "properties": {
           "detail": {
-            "items": { "$ref": "#/components/schemas/ValidationError" },
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
             "type": "array",
             "title": "Detail"
           }
@@ -87,7 +231,7 @@
             "maximum": 5000.0,
             "minimum": 0.0,
             "title": "Daily Limit",
-            "description": "Daily transaction limit."
+            "description": "Daily transaction limit"
           },
           "risk_score": {
             "type": "number",
@@ -98,50 +242,128 @@
           }
         },
         "type": "object",
-        "required": ["daily_limit", "risk_score"],
+        "required": [
+          "daily_limit",
+          "risk_score"
+        ],
         "title": "LimitUpdate"
       },
       "TransferRequest": {
         "properties": {
           "amount": {
-            "type": "number",
-            "multipleOf": 0.01,
-            "maximum": 10000.0,
-            "exclusiveMinimum": 0.0,
+            "anyOf": [
+              {
+                "type": "number",
+                "multipleOf": 0.01,
+                "maximum": 10000.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
             "title": "Amount",
-            "description": "Transfer amount. Tests min/max boundaries and decimal precision."
+            "description": "Transfer amount in dollars (must include cents)"
           },
           "from_account": {
             "type": "integer",
             "maximum": 99999.0,
             "minimum": 10000.0,
             "title": "From Account",
-            "description": "Source account ID (5 digits)"
+            "description": "Source account ID"
           },
           "to_account": {
             "type": "integer",
             "maximum": 99999.0,
             "minimum": 10000.0,
             "title": "To Account",
-            "description": "Destination account ID (5 digits)"
+            "description": "Destination account ID"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Optional transfer description"
           }
         },
         "type": "object",
-        "required": ["amount", "from_account", "to_account"],
+        "required": [
+          "amount",
+          "from_account",
+          "to_account"
+        ],
         "title": "TransferRequest"
+      },
+      "UserCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "description": "User full name"
+          },
+          "email": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+            "title": "Email",
+            "description": "Valid email address"
+          },
+          "account_id": {
+            "type": "integer",
+            "maximum": 99999.0,
+            "minimum": 10000.0,
+            "title": "Account Id",
+            "description": "5-digit account ID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "email",
+          "account_id"
+        ],
+        "title": "UserCreate"
       },
       "ValidationError": {
         "properties": {
           "loc": {
-            "items": { "anyOf": [{ "type": "string" }, { "type": "integer" }] },
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
             "type": "array",
             "title": "Location"
           },
-          "msg": { "type": "string", "title": "Message" },
-          "type": { "type": "string", "title": "Error Type" }
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
         },
         "type": "object",
-        "required": ["loc", "msg", "type"],
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
         "title": "ValidationError"
       }
     }

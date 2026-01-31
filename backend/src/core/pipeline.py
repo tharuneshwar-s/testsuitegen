@@ -234,7 +234,7 @@ def _run_pipeline(job_id, job_request, spec_json) -> dict:
         )
 
         # Step 4: Creating Payloads
-        local_logger.info("Step 4: Creating test payloads")
+        local_logger.info("Step 4: Creating Mock Data")
         asyncio.run(store.set_progress(job_id, 65))
         llm_config = job_request.get("llm_config", {}) or {}
         payload_llm_config = llm_config.get("payload_enhancement", {}) or {}

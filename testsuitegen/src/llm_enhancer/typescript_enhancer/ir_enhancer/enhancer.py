@@ -82,8 +82,10 @@ def enhance_ir_schema_ts(
             # kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": False}}
             # kwargs["generate_cfg"] = ({"thought_in_content": False},)
 
+            # Progressive Backoff Temperature: Increase temp by 0.1 for each retry to break loops
+            base_temp = 0.01
             if attempt > 1:
-                kwargs["temperature"] = 0.1 * attempt
+                kwargs["temperature"] = base_temp + 0.1 * (attempt - 1)
 
             enhanced_text = llm_generate(
                 prompt, provider=provider, model_override=model, **kwargs
@@ -124,7 +126,8 @@ def enhance_ir_schema_ts(
                 except Exception:
                     logger.warning(f"      Invalid JSON. Retrying... Attempt {attempt}")
                     if attempt <= max_retries:
-                        kwargs["temperature"] = 0.1 * attempt
+                        base_temp = 0.01
+                        kwargs["temperature"] = base_temp + 0.1 * (attempt - 1)
                         prompt += f"\n\nInvalid JSON returned: {e}"
                         continue
                     raise ValueError(f"Invalid JSON returned: {e}")

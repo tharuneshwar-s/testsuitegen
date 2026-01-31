@@ -88,8 +88,10 @@ def enhance_payload(
         try:
             print(f"LLM Attempt {attempt}/{max_retries} for {operation_id}...")
 
+            # Progressive Backoff Temperature: Increase temp by 0.1 for each retry to break loops
+            base_temp = 0.01
             if attempt > 1:
-                kwargs["temperature"] = 0.1 * attempt
+                kwargs["temperature"] = base_temp + 0.1 * (attempt - 1)
             # Call LLM
             enhanced_text = llm_generate(
                 prompt, provider=provider, model_override=model, **kwargs

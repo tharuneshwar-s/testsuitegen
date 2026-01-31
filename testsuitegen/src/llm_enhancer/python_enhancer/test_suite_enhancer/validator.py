@@ -6,7 +6,6 @@ import ast
 def validate_no_logic_change(original: str, enhanced: str):
     """Validate that LLM only made safe enhancements, not harmful logic changes."""
 
-
     # Check for obviously harmful changes by comparing key patterns
     harmful_patterns = [
         r"expected_status.*[^=]=[^=]",  # API tests: expected statuses
@@ -26,6 +25,15 @@ def validate_no_logic_change(original: str, enhanced: str):
             raise RuntimeError(
                 f"LLM modified test logic (pattern: {pattern}) — enhancement rejected"
             )
+
+    # Validate test_data_setup fixture structure for API tests
+    # if "def test_data_setup" in original:
+    #     # Check that the fixture still yields a dict with "created_resources" key
+    #     if 'yield {"created_resources": created_resources}' not in enhanced:
+    #         raise RuntimeError(
+    #             "LLM modified test_data_setup fixture structure — enhancement rejected. "
+    #             "Fixture must yield {'created_resources': created_resources}"
+    #         )
 
     # Allow enhancements that add fixtures, comments, or formatting
     return True

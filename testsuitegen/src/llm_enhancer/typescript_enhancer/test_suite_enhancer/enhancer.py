@@ -95,8 +95,16 @@ def enhance_code(
                 f"   LLM Attempt {attempt}/{max_retries} for test code enhancement..."
             )
 
+            # Progressive Backoff Temperature: Increase temp by 0.1 for each retry to break loops
+            base_temp = 0.01
+            kwargs = {}
+            if attempt > 1:
+                kwargs["temperature"] = base_temp + 0.1 * (attempt - 1)
+
             # Call LLM
-            raw_enhanced = llm_generate(prompt, provider=provider, model_override=model)
+            raw_enhanced = llm_generate(
+                prompt, provider=provider, model_override=model, **kwargs
+            )
 
             # 3. STRICT VALIDATION - Clean and validate
             enhanced = _clean_llm_response(raw_enhanced)

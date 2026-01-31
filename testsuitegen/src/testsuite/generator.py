@@ -1,4 +1,3 @@
-
 import os
 from collections import defaultdict
 from typing import List, Dict
@@ -15,6 +14,9 @@ from testsuitegen.src.testsuite.templates import (
     OPENAPI_JEST_TEST_TEMPLATE,
     TYPESCRIPT_FUNCTION_TEST_TEMPLATE,
 )
+from testsuitegen.src.testsuite.analyzer import StaticTestAnalyzer
+from testsuitegen.src.testsuite.planner import SetupPlanner
+from testsuitegen.src.testsuite.compiler import FixtureCompiler
 
 
 class TestSuiteGenerator:
@@ -74,7 +76,13 @@ class TestSuiteGenerator:
         self, ir: dict, payloads: List[Dict], base_url: str = "http://localhost:8000"
     ):
         """
-        Generates integration tests for HTTP APIs.
+        Generates integration tests for HTTP APIs using the new deterministic pipeline:
+
+        1. Static Analyzer - Analyzes IR to detect resource requirements
+        2. Setup Planner - Plans what resources need to be created
+        3. Fixture Compiler - Generates actual fixture code (no LLM)
+        4. Template Renderer - Renders tests with compiled fixtures
+        5. LLM Polisher (optional) - Only cosmetic improvements
         """
         # Ensure base_url is a string and strip trailing slash for consistency
         base_url = str(base_url).rstrip("/")
@@ -84,10 +92,39 @@ class TestSuiteGenerator:
         # We need to look up path/method from the IR for each operation
         ops_map = {op["id"]: op for op in ir["operations"]}
 
+        # === NEW PIPELINE ===
+        # Step 1: Static Analysis - analyze all operations
+        analyzer = StaticTestAnalyzer(ir, payloads)
+        all_analyses = analyzer.analyze_all()
+
+        # Step 2: Setup Planner - plan setup for each operation
+        planner = SetupPlanner(payloads)
+
+        # Step 3: Fixture Compiler - compile fixtures
+        fixture_compiler = FixtureCompiler(base_url)
+
         for op_id, cases in grouped.items():
             op_details = ops_map.get(op_id)
             if not op_details:
                 continue
+
+            # Get analysis and plan for this operation
+            analysis = all_analyses.get(op_id)
+            setup_plan = planner.plan(analysis, all_analyses) if analysis else None
+
+            # Compile the fixture code
+            if setup_plan and setup_plan.needs_setup:
+                compiled_fixture = fixture_compiler.compile(setup_plan)
+                placeholder_resolution = (
+                    fixture_compiler.compile_placeholder_resolution()
+                )
+            else:
+                compiled_fixture = fixture_compiler._compile_empty_fixture()
+                placeholder_resolution = """    # No placeholder resolution needed for this operation
+    if path_params is None:
+        path_params = {}
+    if not isinstance(path_params, dict):
+        path_params = dict(path_params)"""
 
             # Extract error information
             errors = op_details.get("errors", [])
@@ -122,20 +159,40 @@ class TestSuiteGenerator:
             if body and body.get("schema"):
                 body_props = list(body["schema"].get("properties", {}).keys())
 
+            # Patch cases with USE_CREATED_RESOURCE for GET with path params
+            method = op_details["method"].upper()
+            has_path_params = bool(path_param_names)
+            patched_cases = []
+            for case in cases:
+                patched_case = dict(case)
+                if (
+                    method in ("GET", "DELETE", "PUT", "PATCH")
+                    and has_path_params
+                    and case.get("intent", "").upper() == "HAPPY_PATH"
+                ):
+                    # Patch path_params to use a placeholder for created resource
+                    patched_case["path_params"] = {
+                        k: "USE_CREATED_RESOURCE" for k in path_param_names
+                    }
+                patched_cases.append(patched_case)
+
             template = Template(API_TEST_TEMPLATE)
             code = template.render(
                 base_url=base_url,
                 path=op_details["path"],
                 method=op_details["method"],
                 operation_id=op_id,
-                test_cases=cases,
+                test_cases=patched_cases,
                 error_codes=error_codes,
                 error_info=error_info,
                 path_param_names=path_param_names,
                 query_param_names=query_param_names,
                 body_props=body_props,
+                compiled_fixture=compiled_fixture,
+                placeholder_resolution=placeholder_resolution,
             )
 
+            # Write file - LLM is now optional polisher only
             self._write_file("api", f"test_api_{op_id}.py", code, test_type="api")
 
     def generate_api_tests_jest(
@@ -342,5 +399,22 @@ module.exports = {
 
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(content_to_write)
+
+        # Format Python files with black after saving, only if syntax is valid
+        if filename.endswith(".py"):
+            try:
+                import subprocess
+                import py_compile
+
+                try:
+                    py_compile.compile(filepath, doraise=True)
+                except py_compile.PyCompileError as ce:
+                    print(
+                        f"[WARN] Skipping black formatting for {filename}: invalid Python syntax: {ce}"
+                    )
+                else:
+                    subprocess.run(["black", filepath], check=True)
+            except Exception as e:
+                print(f"[WARN] Could not format {filename} with black: {e}")
 
         print(f"[OK] Generated: {filepath}")

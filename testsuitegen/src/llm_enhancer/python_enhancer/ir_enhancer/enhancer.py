@@ -83,11 +83,12 @@ def enhance_ir_schema(
             kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": False}}
 
             # Progressive Backoff Temperature: Increase temp by 0.1 for each retry to break loops
-            # Attempt 1: Default (0.001) or explicit
-            # Attempt 2: 0.2
-            # Attempt 3: 0.3 ...
+            # Attempt 1: Default (0.01)
+            # Attempt 2: 0.11
+            # Attempt 3: 0.21 ...
+            base_temp = 0.01
             if attempt > 1:
-                kwargs["temperature"] = 0.1 * attempt
+                kwargs["temperature"] = base_temp + 0.1 * (attempt - 1)
 
             kwargs["generate_cfg"] = (
                 {
