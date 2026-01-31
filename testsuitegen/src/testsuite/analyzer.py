@@ -7,6 +7,9 @@ This is deterministic - no LLM involved.
 
 from typing import List, Dict, Any, Set
 from dataclasses import dataclass, field
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -182,6 +185,13 @@ class StaticTestAnalyzer:
                     analysis.create_operations[resource_type] = create_op
 
         analysis.needs_setup = needs_setup
+        logger.debug(
+            "analyze_operation: %s %s needs_setup=%s resources=%d",
+            operation_id,
+            path,
+            analysis.needs_setup,
+            len(analysis.resource_requirements),
+        )
         return analysis
 
     def _extract_required_fields(self, schema: Dict) -> List[str]:

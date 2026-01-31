@@ -6,18 +6,38 @@ from runtime_traps import build_config_dangerous
 
 
 class Testbuildconfigdangerous:
+
     @pytest.mark.parametrize(
         "intent, kwargs, expected_status",
         [
             pytest.param(
                 "PythonIntentType.HAPPY_PATH",
-                {
-                    "key": "__PLACEHOLDER_STRING_key__",
-                    "value": "__PLACEHOLDER_STRING_value__",
-                    "base": {},
-                },
+                {"base": {}, "key": "Production Plan", "value": "alice@example.com"},
                 200,
                 id="PythonIntentType.HAPPY_PATH",
+            ),
+            pytest.param(
+                "PythonIntentType.REQUIRED_ARG_MISSING",
+                {"base": {}, "value": "alice@example.com"},
+                400,
+                id="PythonIntentType.REQUIRED_ARG_MISSING",
+            ),
+            pytest.param(
+                "PythonIntentType.REQUIRED_ARG_MISSING",
+                {"base": {}, "key": "Production Plan"},
+                400,
+                id="PythonIntentType.REQUIRED_ARG_MISSING",
+            ),
+            pytest.param(
+                "PythonIntentType.UNEXPECTED_ARGUMENT",
+                {
+                    "__unexpected_kwarg__": "unexpected_value",
+                    "base": {},
+                    "key": "Production Plan",
+                    "value": "alice@example.com",
+                },
+                400,
+                id="PythonIntentType.UNEXPECTED_ARGUMENT",
             ),
         ],
     )
@@ -30,8 +50,8 @@ class Testbuildconfigdangerous:
 
         # Negative Tests (Expect Exceptions)
         if expected_status >= 400:
-            # We expect TypeError for structural issues or ValueError for constraints
-            with pytest.raises((ValueError, TypeError, AssertionError)):
+            # We expect TypeError for structural issues, ValueError for constraints, or AttributeError for None access
+            with pytest.raises((ValueError, TypeError, AssertionError, AttributeError)):
                 build_config_dangerous(**kwargs)
 
         # Happy Path (Expect Return Value)

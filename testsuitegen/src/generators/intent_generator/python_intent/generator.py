@@ -3,6 +3,50 @@ from testsuitegen.src.generators.intent_generator.python_intent.enums import (
 )
 
 
+# Keywords in function docstrings that indicate security validation is present
+SECURITY_KEYWORDS = [
+    "sanitize",
+    "sanitized",
+    "sanitization",
+    "escape",
+    "escaped",
+    "injection",
+    "sql_injection",
+    "xss",
+    "xss_injection",
+    "security",
+    "secure",
+    "malicious",
+    "dangerous",
+]
+
+# Keywords indicating type/constraint validation is present
+TYPE_VALIDATION_KEYWORDS = [
+    "validate",
+    "validated",
+    "validation",
+    "check",
+    "checked",
+    "constraint",
+    "constraints",
+    "must be",
+    "should be",
+    "range",
+    "between",
+    "type error",
+    "typeerror",
+    "valueerror",
+]
+
+# Decorators that indicate runtime type validation
+TYPE_VALIDATION_DECORATORS = [
+    "@validate",
+    "@validated",
+    "@pydantic",
+    "@dataclass",  # Dataclasses with validators
+]
+
+
 class PythonIntentGenerator:
     """
     Generates test intents for Python functions based on their IR schema.
@@ -15,6 +59,23 @@ class PythonIntentGenerator:
         self.body = ir_operation["inputs"].get("body", {})
         self.schema = self.body.get("schema", {})
         self.intents = []
+
+        # Check if function has security validation based on docstring
+        description = self.op.get("description", "").lower()
+        self.has_security_validation = any(
+            keyword in description for keyword in SECURITY_KEYWORDS
+        )
+
+        # Check if function has type/constraint validation
+        decorators = self.op.get("metadata", {}).get("decorators", [])
+        has_validation_decorator = any(
+            dec.lower() in [d.lower() for d in TYPE_VALIDATION_DECORATORS]
+            for dec in decorators
+        )
+        has_validation_in_doc = any(
+            keyword in description for keyword in TYPE_VALIDATION_KEYWORDS
+        )
+        self.has_type_validation = has_validation_decorator or has_validation_in_doc
 
     def generate(self) -> list[dict]:
         if not self.schema:
@@ -73,18 +134,21 @@ class PythonIntentGenerator:
                 )
 
             # --- 2. Type Checks ---
-            # TYPE_VIOLATION only applies to types where sending wrong type causes error
-            # String fields accept any string, so TYPE_VIOLATION doesn't apply
+            # TYPE_VIOLATION only applies if the function has explicit type validation
+            # Plain Python functions don't enforce type hints at runtime
             prop_type = prop.get("type")
-            if prop_type in ["integer", "number", "boolean"] or "enum" in prop:
-                self._emit(
-                    PythonIntentType.TYPE_VIOLATION,
-                    field_path,
-                    field=name,
-                    expected="400",
-                )
+            if self.has_type_validation:
+                if prop_type in ["integer", "number", "boolean"] or "enum" in prop:
+                    self._emit(
+                        PythonIntentType.TYPE_VIOLATION,
+                        field_path,
+                        field=name,
+                        expected="400",
+                    )
 
-            if not prop.get("nullable", False):
+            # NULL_NOT_ALLOWED only if function has type validation
+            # Plain Python functions accept None without raising errors
+            if self.has_type_validation and not prop.get("nullable", False):
                 self._emit(
                     PythonIntentType.NULL_NOT_ALLOWED,
                     field_path,
@@ -113,7 +177,7 @@ class PythonIntentGenerator:
                     self._emit(PythonIntentType.NOT_MULTIPLE_OF, field_path, field=name)
 
                 # Edge case: Zero
-                
+
                 if prop.get("minimum", 0) > 0 or prop.get("exclusiveMinimum", False):
                     self._emit(PythonIntentType.ZERO_VALUE, field_path, field=name)
 
@@ -138,8 +202,10 @@ class PythonIntentGenerator:
                     )
 
                 # Security Fuzzing (Skip if strict format/enum exists)
+                # Only emit security intents if function has security validation
                 if (
-                    not prop.get("enum")
+                    self.has_security_validation
+                    and not prop.get("enum")
                     and "x-enum-type" not in prop
                     and prop.get("format")
                     not in [
@@ -154,9 +220,13 @@ class PythonIntentGenerator:
 
             # --- 5. Collections (Arrays) ---
             if prop.get("type") == "array":
-                self._emit(
-                    PythonIntentType.ARRAY_ITEM_TYPE_VIOLATION, field_path, field=name
-                )
+                # ARRAY_ITEM_TYPE_VIOLATION only if function has type validation
+                if self.has_type_validation:
+                    self._emit(
+                        PythonIntentType.ARRAY_ITEM_TYPE_VIOLATION,
+                        field_path,
+                        field=name,
+                    )
 
                 # Empty collection check
                 if prop.get("minItems", 0) > 0:

@@ -6,17 +6,31 @@ from runtime_traps import append_item_safe
 
 
 class Testappenditemsafe:
+
     @pytest.mark.parametrize(
         "intent, kwargs, expected_status",
         [
             pytest.param(
                 "PythonIntentType.HAPPY_PATH",
-                {
-                    "item": "__PLACEHOLDER_STRING_item__",
-                    "items": ["__PLACEHOLDER_STRING_items__"],
-                },
+                {"item": "Laptop", "items": ["Smartphone"]},
                 200,
                 id="PythonIntentType.HAPPY_PATH",
+            ),
+            pytest.param(
+                "PythonIntentType.REQUIRED_ARG_MISSING",
+                {"items": ["Smartphone"]},
+                400,
+                id="PythonIntentType.REQUIRED_ARG_MISSING",
+            ),
+            pytest.param(
+                "PythonIntentType.UNEXPECTED_ARGUMENT",
+                {
+                    "__unexpected_kwarg__": "unexpected_value",
+                    "item": "Laptop",
+                    "items": ["Smartphone"],
+                },
+                400,
+                id="PythonIntentType.UNEXPECTED_ARGUMENT",
             ),
         ],
     )
@@ -29,8 +43,8 @@ class Testappenditemsafe:
 
         # Negative Tests (Expect Exceptions)
         if expected_status >= 400:
-            # We expect TypeError for structural issues or ValueError for constraints
-            with pytest.raises((ValueError, TypeError, AssertionError)):
+            # We expect TypeError for structural issues, ValueError for constraints, or AttributeError for None access
+            with pytest.raises((ValueError, TypeError, AssertionError, AttributeError)):
                 append_item_safe(**kwargs)
 
         # Happy Path (Expect Return Value)

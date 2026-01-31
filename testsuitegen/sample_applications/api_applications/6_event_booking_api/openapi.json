@@ -1,0 +1,384 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Event Booking API",
+    "description": "Simple event booking for testsuitegen demo",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/events": {
+      "get": {
+        "tags": [
+          "Events"
+        ],
+        "summary": "List Events",
+        "description": "List all events.\n\n**Intents**: HAPPY_PATH",
+        "operationId": "list_events_events_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Events"
+        ],
+        "summary": "Create Event",
+        "description": "Create a new event.\n\n**Intents**: HAPPY_PATH, REQUIRED_FIELD_MISSING, TYPE_VIOLATION,\nENUM_MISMATCH, PATTERN_MISMATCH, BOUNDARY_MIN/MAX, NOT_MULTIPLE_OF,\nSTRING_TOO_SHORT, STRING_TOO_LONG",
+        "operationId": "create_event_events_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Event"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{event_id}": {
+      "get": {
+        "tags": [
+          "Events"
+        ],
+        "summary": "Get Event",
+        "description": "Get event by ID.\n\n**Intents**: HAPPY_PATH, RESOURCE_NOT_FOUND",
+        "operationId": "get_event_events__event_id__get",
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bookings": {
+      "post": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Create Booking",
+        "description": "Create a booking for an event.\n\n**Intents**: HAPPY_PATH, REQUIRED_FIELD_MISSING, PATTERN_MISMATCH,\nBOUNDARY_MIN/MAX, RESOURCE_NOT_FOUND",
+        "operationId": "create_booking_bookings_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Booking"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bookings/{booking_id}": {
+      "get": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Get Booking",
+        "description": "Get booking by ID.\n\n**Intents**: HAPPY_PATH, RESOURCE_NOT_FOUND",
+        "operationId": "get_booking_bookings__booking_id__get",
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Booking Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Cancel Booking",
+        "description": "Cancel a booking.\n\n**Intents**: HAPPY_PATH, RESOURCE_NOT_FOUND",
+        "operationId": "cancel_booking_bookings__booking_id__delete",
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Booking Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Health",
+        "description": "Health check.",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Booking": {
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Event Id"
+          },
+          "attendee_name": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 2,
+            "title": "Attendee Name"
+          },
+          "attendee_email": {
+            "type": "string",
+            "pattern": "^[\\w.-]+@[\\w.-]+\\.\\w+$",
+            "title": "Attendee Email"
+          },
+          "quantity": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Quantity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "attendee_name",
+          "attendee_email",
+          "quantity"
+        ],
+        "title": "Booking",
+        "description": "Booking model."
+      },
+      "Event": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 3,
+            "title": "Title"
+          },
+          "event_type": {
+            "$ref": "#/components/schemas/EventType"
+          },
+          "capacity": {
+            "type": "integer",
+            "maximum": 1000.0,
+            "minimum": 10.0,
+            "title": "Capacity"
+          },
+          "price": {
+            "type": "number",
+            "multipleOf": 0.01,
+            "maximum": 999.99,
+            "minimum": 0.0,
+            "title": "Price"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^EVT-\\d{4}$",
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "event_type",
+          "capacity",
+          "price",
+          "code"
+        ],
+        "title": "Event",
+        "description": "Event model with validation constraints."
+      },
+      "EventType": {
+        "type": "string",
+        "enum": [
+          "conference",
+          "workshop",
+          "meetup"
+        ],
+        "title": "EventType"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

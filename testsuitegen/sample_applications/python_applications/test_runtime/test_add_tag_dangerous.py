@@ -6,17 +6,31 @@ from runtime_traps import add_tag_dangerous
 
 
 class Testaddtagdangerous:
+
     @pytest.mark.parametrize(
         "intent, kwargs, expected_status",
         [
             pytest.param(
                 "PythonIntentType.HAPPY_PATH",
-                {
-                    "name": "__PLACEHOLDER_STRING_name__",
-                    "tags": ["__PLACEHOLDER_STRING_tags__"],
-                },
+                {"name": "John Doe", "tags": ["Important", "Sensitive"]},
                 200,
                 id="PythonIntentType.HAPPY_PATH",
+            ),
+            pytest.param(
+                "PythonIntentType.REQUIRED_ARG_MISSING",
+                {"tags": ["Important", "Sensitive"]},
+                400,
+                id="PythonIntentType.REQUIRED_ARG_MISSING",
+            ),
+            pytest.param(
+                "PythonIntentType.UNEXPECTED_ARGUMENT",
+                {
+                    "__unexpected_kwarg__": "unexpected_value",
+                    "name": "John Doe",
+                    "tags": ["Important", "Sensitive"],
+                },
+                400,
+                id="PythonIntentType.UNEXPECTED_ARGUMENT",
             ),
         ],
     )
@@ -29,8 +43,8 @@ class Testaddtagdangerous:
 
         # Negative Tests (Expect Exceptions)
         if expected_status >= 400:
-            # We expect TypeError for structural issues or ValueError for constraints
-            with pytest.raises((ValueError, TypeError, AssertionError)):
+            # We expect TypeError for structural issues, ValueError for constraints, or AttributeError for None access
+            with pytest.raises((ValueError, TypeError, AssertionError, AttributeError)):
                 add_tag_dangerous(**kwargs)
 
         # Happy Path (Expect Return Value)

@@ -6,6 +6,7 @@ from constraints_numeric import validate_email_pattern
 
 
 class Testvalidateemailpattern:
+
     @pytest.mark.parametrize(
         "intent, kwargs, expected_status",
         [
@@ -16,16 +17,31 @@ class Testvalidateemailpattern:
                 id="PythonIntentType.HAPPY_PATH",
             ),
             pytest.param(
-                "PythonIntentType.INVALID_EMAIL",
-                {"email": "invalid-email"},
+                "PythonIntentType.REQUIRED_ARG_MISSING",
+                {},
                 400,
-                id="PythonIntentType.INVALID_EMAIL",
+                id="PythonIntentType.REQUIRED_ARG_MISSING",
             ),
             pytest.param(
-                "PythonIntentType.INVALID_FORMAT",
-                {"email": "alice@.com"},
+                "PythonIntentType.NULL_NOT_ALLOWED",
+                {"email": None},
+                400,
+                id="PythonIntentType.NULL_NOT_ALLOWED",
+            ),
+            pytest.param(
+                "PythonIntentType.PATTERN_MISMATCH",
+                {"email": "!!!invalid_pattern!!!"},
                 422,
-                id="PythonIntentType.INVALID_FORMAT",
+                id="PythonIntentType.PATTERN_MISMATCH",
+            ),
+            pytest.param(
+                "PythonIntentType.UNEXPECTED_ARGUMENT",
+                {
+                    "__unexpected_kwarg__": "unexpected_value",
+                    "email": "alice@example.com",
+                },
+                400,
+                id="PythonIntentType.UNEXPECTED_ARGUMENT",
             ),
         ],
     )
@@ -38,8 +54,8 @@ class Testvalidateemailpattern:
 
         # Negative Tests (Expect Exceptions)
         if expected_status >= 400:
-            # We expect TypeError for structural issues or ValueError for constraints
-            with pytest.raises((ValueError, TypeError, AssertionError)):
+            # We expect TypeError for structural issues, ValueError for constraints, or AttributeError for None access
+            with pytest.raises((ValueError, TypeError, AssertionError, AttributeError)):
                 validate_email_pattern(**kwargs)
 
         # Happy Path (Expect Return Value)

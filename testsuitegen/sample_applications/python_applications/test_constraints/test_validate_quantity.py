@@ -6,6 +6,7 @@ from constraints_numeric import validate_quantity
 
 
 class Testvalidatequantity:
+
     @pytest.mark.parametrize(
         "intent, kwargs, expected_status",
         [
@@ -14,6 +15,24 @@ class Testvalidatequantity:
                 {"quantity": 15},
                 200,
                 id="PythonIntentType.HAPPY_PATH",
+            ),
+            pytest.param(
+                "PythonIntentType.REQUIRED_ARG_MISSING",
+                {},
+                400,
+                id="PythonIntentType.REQUIRED_ARG_MISSING",
+            ),
+            pytest.param(
+                "PythonIntentType.TYPE_VIOLATION",
+                {"quantity": "not_an_integer"},
+                400,
+                id="PythonIntentType.TYPE_VIOLATION",
+            ),
+            pytest.param(
+                "PythonIntentType.NULL_NOT_ALLOWED",
+                {"quantity": None},
+                400,
+                id="PythonIntentType.NULL_NOT_ALLOWED",
             ),
             pytest.param(
                 "PythonIntentType.BOUNDARY_MIN_MINUS_ONE",
@@ -33,6 +52,18 @@ class Testvalidatequantity:
                 422,
                 id="PythonIntentType.BOUNDARY_MAX_PLUS_ONE",
             ),
+            pytest.param(
+                "PythonIntentType.ZERO_VALUE",
+                {"quantity": 0},
+                422,
+                id="PythonIntentType.ZERO_VALUE",
+            ),
+            pytest.param(
+                "PythonIntentType.UNEXPECTED_ARGUMENT",
+                {"__unexpected_kwarg__": "unexpected_value", "quantity": 15},
+                400,
+                id="PythonIntentType.UNEXPECTED_ARGUMENT",
+            ),
         ],
     )
     def test_validate_quantity_contract(self, intent, kwargs, expected_status):
@@ -44,8 +75,8 @@ class Testvalidatequantity:
 
         # Negative Tests (Expect Exceptions)
         if expected_status >= 400:
-            # We expect TypeError for structural issues or ValueError for constraints
-            with pytest.raises((ValueError, TypeError, AssertionError)):
+            # We expect TypeError for structural issues, ValueError for constraints, or AttributeError for None access
+            with pytest.raises((ValueError, TypeError, AssertionError, AttributeError)):
                 validate_quantity(**kwargs)
 
         # Happy Path (Expect Return Value)

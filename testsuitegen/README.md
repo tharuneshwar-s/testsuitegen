@@ -11,7 +11,7 @@
 ![vLLM](https://img.shields.io/badge/vLLM-Supported-blue?style=for-the-badge)
 ![LM Studio](https://img.shields.io/badge/LM_Studio-Local-purple?style=for-the-badge)
 
-The core logic engine for generating test suites. It handles parsing OpenAPI/Python specifications, generating Intermediate Representations (IR), enhancing payloads via LLMs, and rendering test code.
+The core logic engine for generating test suites. It handles parsing OpenAPI/Python/TypeScript specifications, generating Intermediate Representations (IR), discovering test intents, mutating payloads, and rendering test code with optional LLM enhancement.
 
 ## Installation
 
@@ -32,69 +32,123 @@ The core logic engine for generating test suites. It handles parsing OpenAPI/Pyt
 testsuitegen/
 ├── requirements.txt            # Project dependencies
 ├── src/                        # Source code
-│   ├── config/
-│   │   ├── settings.py         # Global settings & Enums (LLMProviders, API Keys)
-│   │   └── __init__.py
-│   ├── exceptions/
-│   │   ├── exceptions.py       # Custom error classes (LLMError, ParsingError)
-│   │   └── __init__.py
-│   ├── generators/             # Core Generation Logic
-│   │   ├── intent_generator/   # 1. Intent Analysis
-│   │   │   ├── openapi_intent/ # OpenAPI specific strategies
+│   │
+│   ├── parsers/                # STAGE 1: Source Code Parsers
+│   │   ├── __init__.py
+│   │   ├── validator.py        # Schema validation utilities
+│   │   ├── openapi_parser/     # OpenAPI/Swagger parsing
+│   │   │   ├── __init__.py
+│   │   │   └── parser.py
+│   │   ├── python_parser/      # Python AST parsing
+│   │   │   ├── __init__.py
+│   │   │   └── parser.py
+│   │   └── typescript_parser/  # Tree-sitter TypeScript parsing
+│   │       ├── __init__.py
+│   │       └── parser.py
+│   │
+│   ├── generators/             # STAGES 2-4: Generation Logic
+│   │   │
+│   │   ├── ir_generator/       # STAGE 2: Intermediate Representation
+│   │   │   ├── __init__.py
+│   │   │   ├── builder.py      # IR construction from parsed specs
+│   │   │   └── validator.py    # IR schema validation
+│   │   │
+│   │   ├── intent_generator/   # STAGE 3: Intent Discovery
+│   │   │   ├── __init__.py
+│   │   │   ├── generator.py    # Main intent strategy dispatcher
+│   │   │   ├── openapi_intent/ # OpenAPI-specific intents
+│   │   │   │   ├── enums.py    # Intent type definitions
+│   │   │   │   └── generator.py
+│   │   │   ├── python_intent/  # Python-specific intents
 │   │   │   │   ├── enums.py
 │   │   │   │   └── generator.py
-│   │   │   ├── python_intent/  # Python specific strategies
-│   │   │   │   ├── enums.py
-│   │   │   │   └── generator.py
-│   │   │   ├── typescript_intent/ # TypeScript specific strategies
-│   │   │   │   ├── enums.py
-│   │   │   │   └── generator.py
-│   │   │   └── generator.py    # Main Intent Strategy
-│   │   ├── ir_generator/       # 2. Intermediate Representation
-│   │   │   ├── builder.py      # IR Construction logic
-│   │   │   └── validator.py    # Schema validation
-│   │   └── payloads_generator/ # 3. Payload Generation
+│   │   │   └── typescript_intent/ # TypeScript-specific intents
+│   │   │       ├── enums.py
+│   │   │       └── generator.py
+│   │   │
+│   │   └── payloads_generator/ # STAGE 4: Payload Generation & Mutation
+│   │       ├── __init__.py
+│   │       ├── generator.py    # Base payload generator
+│   │       ├── mutator.py      # Base mutation strategies
 │   │       ├── openapi_mutator/
-│   │       │   └── mutator.py
+│   │       │   └── mutator.py  # OpenAPI-specific mutations
 │   │       ├── python_mutator/
-│   │       │   └── mutator.py
-│   │       ├── typescript_mutator/
-│   │       │   └── mutator.py
-│   │       ├── generator.py
-│   │       └── mutator.py      # Base mutator logic
-│   ├── llm_enhancer/           # AI Enhancement Layer
-│   │   ├── payload_enhancer/   # Data realism enhancement
+│   │       │   └── mutator.py  # Python-specific mutations
+│   │       └── typescript_mutator/
+│   │           └── mutator.py  # TypeScript-specific mutations
+│   │
+│   ├── testsuite/              # STAGE 5: Test Code Rendering (NEW PIPELINE)
+│   │   ├── __init__.py
+│   │   ├── generator.py        # Main test suite orchestrator
+│   │   ├── templates.py        # Jinja2 templates (Pytest, Jest)
+│   │   ├── analyzer.py         # Static resource dependency analysis
+│   │   ├── planner.py          # Setup/teardown planning
+│   │   └── compiler.py         # Fixture code compilation
+│   │
+│   ├── llm_enhancer/           # Optional AI Enhancement Layer
+│   │   ├── __init__.py
+│   │   ├── client.py           # Unified LLM client wrapper
+│   │   ├── circuit_breaker.py  # Error resilience (failure threshold)
+│   │   │
+│   │   ├── providers/          # LLM Provider Integrations
+│   │   │   ├── base.py         # Abstract base class
+│   │   │   ├── factory.py      # Provider factory
+│   │   │   ├── gemini.py       # Google Gemini
+│   │   │   ├── groq.py         # Groq
+│   │   │   ├── vllm.py         # vLLM (local/remote)
+│   │   │   ├── lmstudio.py     # LM Studio (local)
+│   │   │   ├── openrouter.py   # OpenRouter
+│   │   │   └── airllm.py       # AirLLM
+│   │   │
+│   │   ├── payload_enhancer/   # Payload realism enhancement
 │   │   │   ├── enhancer.py
 │   │   │   ├── prompts.py
 │   │   │   └── validator.py
-│   │   ├── providers/          # LLM Integration
-│   │   │   ├── airllm.py
-│   │   │   ├── base.py
-│   │   │   ├── config.py
-│   │   │   ├── factory.py
-│   │   │   ├── gemini.py
-│   │   │   ├── groq.py
-│   │   │   ├── lmstudio.py
-│   │   │   ├── openrouter.py
-│   │   │   └── vllm.py
-│   │   ├── python_enhancer/    # Python Code Enhancement
+│   │   │
+│   │   ├── python_enhancer/    # Python test code polishing
 │   │   │   ├── ir_enhancer/
-│   │   │   │   ├── enhancer.py
-│   │   │   │   └── prompts.py
 │   │   │   └── test_suite_enhancer/
-│   │   │       └── enhancer.py
-│   │   ├── typescript_enhancer/# TypeScript Code Enhancement
-│   │   │   ├── ir_enhancer/
-│   │   │   │   └── enhancer.py
-│   │   │   └── test_suite_enhancer/
-│   │   │       └── enhancer.py
-│   │   ├── circuit_breaker.py  # Error resilience
-│   │   └── client.py           # Unified client wrapper
-│   └── testsuite/              # 4. Final Code Rendering
-│       ├── generator.py        # Orchestrates template rendering
-│       └── templates.py        # Jinja2 templates (Pytest, Jest)
-└── __init__.py
+│   │   │       ├── enhancer.py
+│   │   │       ├── prompts.py
+│   │   │       └── validator.py # Payload integrity validation
+│   │   │
+│   │   └── typescript_enhancer/ # TypeScript test code polishing
+│   │       ├── ir_enhancer/
+│   │       └── test_suite_enhancer/
+│   │           ├── enhancer.py
+│   │           ├── prompts.py
+│   │           └── validator.py # Payload integrity validation
+│   │
+│   ├── config/                 # Configuration
+│   │   ├── __init__.py
+│   │   └── settings.py         # Global settings, LLMProviders enum
+│   │
+│   ├── exceptions/             # Custom Exceptions
+│   │   ├── __init__.py
+│   │   └── exceptions.py       # LLMError, ParsingError, etc.
+│   │
+│   └── utils/                  # Utilities
+│       ├── __init__.py
+│       └── tree_sitter_loader.py # Tree-sitter grammar loading
+│
+└── sample_applications/        # Demo Applications for Testing
+    ├── api_applications/       # OpenAPI samples
+    │   ├── 4_fintech_api/
+    │   └── 6_event_booking_api/
+    ├── python_applications/    # Python function samples
+    └── ts_applications/        # TypeScript function samples
 ```
+
+## Stage 5: Test Rendering Components
+
+The `testsuite/` module uses a deterministic sub-pipeline for API test generation:
+
+| Component | File | Description |
+|-----------|------|-------------|
+| **Static Analyzer** | `analyzer.py` | Detects resource dependencies (e.g., GET needs created ID) |
+| **Setup Planner** | `planner.py` | Plans resource creation order (POST before GET) |
+| **Fixture Compiler** | `compiler.py` | Generates pytest fixtures / Jest beforeAll hooks |
+| **Template Renderer** | `generator.py` | Renders Jinja2 templates with compiled fixtures |
 
 ## Environment Configuration
 

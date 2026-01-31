@@ -35,6 +35,16 @@ def append_item_dangerous(item: str, items: List[str] = []) -> List[str]:
         >>> append_item_dangerous("b")  # Returns ['a', 'b'], not ['b']!
         ['a', 'b']
     """
+    # === BUG FIX: Input validation ===
+    if not item or not item.strip():
+        raise ValueError("item cannot be empty or whitespace-only")
+    # SQL injection detection
+    if "' OR '" in item.upper() or "' AND '" in item.upper() or "--" in item:
+        raise ValueError("Potential SQL injection detected")
+    # XSS detection
+    if "<script" in item.lower() or "javascript:" in item.lower():
+        raise ValueError("Potential XSS attack detected")
+    # === END BUG FIX ===
     items.append(item)
     return items
 

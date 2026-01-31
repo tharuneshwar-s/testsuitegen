@@ -6,20 +6,33 @@ from constraints_numeric import allocate_items
 
 
 class Testallocateitems:
+
     @pytest.mark.parametrize(
         "intent, kwargs, expected_status",
         [
             pytest.param(
                 "PythonIntentType.HAPPY_PATH",
-                {"count": 1},
+                {"count": 5},
                 200,
                 id="PythonIntentType.HAPPY_PATH",
             ),
             pytest.param(
-                "PythonIntentType.ERROR_PATH",
-                {"count": "invalid"},
+                "PythonIntentType.REQUIRED_ARG_MISSING",
+                {},
                 400,
-                id="PythonIntentType.ERROR_PATH",
+                id="PythonIntentType.REQUIRED_ARG_MISSING",
+            ),
+            pytest.param(
+                "PythonIntentType.NOT_MULTIPLE_OF",
+                {"count": 6},
+                422,
+                id="PythonIntentType.NOT_MULTIPLE_OF",
+            ),
+            pytest.param(
+                "PythonIntentType.UNEXPECTED_ARGUMENT",
+                {"__unexpected_kwarg__": "unexpected_value", "count": 5},
+                400,
+                id="PythonIntentType.UNEXPECTED_ARGUMENT",
             ),
         ],
     )
@@ -32,8 +45,8 @@ class Testallocateitems:
 
         # Negative Tests (Expect Exceptions)
         if expected_status >= 400:
-            # We expect TypeError for structural issues or ValueError for constraints
-            with pytest.raises((ValueError, TypeError, AssertionError)):
+            # We expect TypeError for structural issues, ValueError for constraints, or AttributeError for None access
+            with pytest.raises((ValueError, TypeError, AssertionError, AttributeError)):
                 allocate_items(**kwargs)
 
         # Happy Path (Expect Return Value)

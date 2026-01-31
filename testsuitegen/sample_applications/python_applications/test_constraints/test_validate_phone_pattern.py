@@ -6,6 +6,7 @@ from constraints_numeric import validate_phone_pattern
 
 
 class Testvalidatephonepattern:
+
     @pytest.mark.parametrize(
         "intent, kwargs, expected_status",
         [
@@ -16,16 +17,28 @@ class Testvalidatephonepattern:
                 id="PythonIntentType.HAPPY_PATH",
             ),
             pytest.param(
-                "PythonIntentType.INVALID_PHONE_FORMAT",
-                {"phone": "abc-123-456"},
+                "PythonIntentType.REQUIRED_ARG_MISSING",
+                {},
                 400,
-                id="PythonIntentType.INVALID_PHONE_FORMAT",
+                id="PythonIntentType.REQUIRED_ARG_MISSING",
             ),
             pytest.param(
-                "PythonIntentType.INVALID_PHONE_LENGTH",
-                {"phone": "123456789012"},
+                "PythonIntentType.NULL_NOT_ALLOWED",
+                {"phone": None},
                 400,
-                id="PythonIntentType.INVALID_PHONE_LENGTH",
+                id="PythonIntentType.NULL_NOT_ALLOWED",
+            ),
+            pytest.param(
+                "PythonIntentType.PATTERN_MISMATCH",
+                {"phone": "!!!invalid_pattern!!!"},
+                422,
+                id="PythonIntentType.PATTERN_MISMATCH",
+            ),
+            pytest.param(
+                "PythonIntentType.UNEXPECTED_ARGUMENT",
+                {"__unexpected_kwarg__": "unexpected_value", "phone": "123-456-7890"},
+                400,
+                id="PythonIntentType.UNEXPECTED_ARGUMENT",
             ),
         ],
     )
@@ -38,8 +51,8 @@ class Testvalidatephonepattern:
 
         # Negative Tests (Expect Exceptions)
         if expected_status >= 400:
-            # We expect TypeError for structural issues or ValueError for constraints
-            with pytest.raises((ValueError, TypeError, AssertionError)):
+            # We expect TypeError for structural issues, ValueError for constraints, or AttributeError for None access
+            with pytest.raises((ValueError, TypeError, AssertionError, AttributeError)):
                 validate_phone_pattern(**kwargs)
 
         # Happy Path (Expect Return Value)

@@ -14,15 +14,13 @@ from testsuitegen.src.generators.payloads_generator.typescript_mutator.mutator i
 )
 
 
-
-
 def get_mutator_for_kind(kind: str):
     """
     Factory function to get the appropriate mutator based on IR operation kind.
-    
+
     Args:
         kind: The kind of operation ('http', 'function', 'typescript_function')
-        
+
     Returns:
         An instance of the appropriate mutator class
     """
@@ -46,7 +44,7 @@ class PayloadGenerator:
         self.ir = ir
         self.base_path_params = self._build_path_params()
         self.base_headers = self._build_valid_headers()
-        
+
         # Select the appropriate mutator based on IR kind
         kind = ir.get("kind", "http")
         self.mutator = get_mutator_for_kind(kind)
@@ -138,27 +136,27 @@ class PayloadGenerator:
     def _generate_mock_response(self, status_code: int) -> dict:
         """Generate a mock response based on the operation's output schemas."""
         outputs = self.ir.get("outputs", [])
-        
+
         # Find matching output schema for the expected status code
         matching_output = None
         for output in outputs:
             if output.get("status") == status_code:
                 matching_output = output
                 break
-        
+
         # If no exact match, try to find a 2xx response for happy path
         if not matching_output and 200 <= status_code < 300:
             for output in outputs:
                 if 200 <= output.get("status", 0) < 300:
                     matching_output = output
                     break
-        
+
         if not matching_output or not matching_output.get("schema"):
             return {"status": status_code, "body": None}
-        
+
         schema = matching_output["schema"]
         mock_body = self._generate_value_from_schema(schema)
-        
+
         return {
             "status": status_code,
             "content_type": matching_output.get("content_type", "application/json"),
@@ -169,38 +167,38 @@ class PayloadGenerator:
         """Recursively generate mock data from a schema."""
         if not isinstance(schema, dict):
             return None
-        
+
         # Handle oneOf/anyOf by picking first option
         if "oneOf" in schema:
             return self._generate_value_from_schema(schema["oneOf"][0])
         if "anyOf" in schema:
             return self._generate_value_from_schema(schema["anyOf"][0])
-        
+
         schema_type = schema.get("type", "object")
-        
+
         # Use example if provided
         if "example" in schema:
             return schema["example"]
-        
+
         # Use default if provided
         if "default" in schema:
             return schema["default"]
-        
+
         # Use enum first value if provided
         if "enum" in schema:
             return schema["enum"][0]
-        
+
         if schema_type == "object":
             result = {}
             properties = schema.get("properties", {})
             for prop_name, prop_schema in properties.items():
                 result[prop_name] = self._generate_value_from_schema(prop_schema)
             return result
-        
+
         elif schema_type == "array":
             items_schema = schema.get("items", {})
             return [self._generate_value_from_schema(items_schema)]
-        
+
         elif schema_type == "string":
             fmt = schema.get("format")
             if fmt == "uuid":
@@ -214,16 +212,16 @@ class PayloadGenerator:
             elif fmt == "uri":
                 return "https://example.com/resource"
             return "sample_string"
-        
+
         elif schema_type == "integer":
             return 1
-        
+
         elif schema_type == "number":
             return 1.0
-        
+
         elif schema_type == "boolean":
             return True
-        
+
         return None
 
     def _handle_happy_path(self, payload: dict, path_params: dict):
@@ -297,7 +295,15 @@ class PayloadGenerator:
         t = spec.get("type")
         if t == "string":
             if "enum" in spec:
-                return spec["enum"][0]
+                enum_value = spec["enum"][0]
+                # Check if this is a Python Enum type (has x-enum-type marker)
+                if "x-enum-type" in spec:
+                    enum_type = spec["x-enum-type"]
+                    # Find the enum member name that matches this value
+                    # Convention: enum member names are uppercase versions of values
+                    member_name = str(enum_value).upper()
+                    return f"__ENUM__{enum_type}.{member_name}__"
+                return enum_value
             fmt = spec.get("format")
             if fmt == "uuid":
                 return f"__PLACEHOLDER_UUID_{field_name}__"
@@ -305,8 +311,25 @@ class PayloadGenerator:
                 return f"__PLACEHOLDER_DATETIME_{field_name}__"
             return f"__PLACEHOLDER_STRING_{field_name}__"
         if t == "integer":
-            # Respect minimum/maximum constraints
+            # Check for multipleOf constraint first
+            multiple = spec.get("multipleOf")
             min_val = spec.get("minimum", spec.get("exclusiveMinimum"))
+
+            if multiple:
+                # Find the smallest multiple that satisfies minimum constraint
+                if min_val is not None:
+                    if "exclusiveMinimum" in spec:
+                        min_val = int(min_val) + 1
+                    else:
+                        min_val = int(min_val)
+                    # Round up to the nearest multiple of multipleOf
+                    import math
+
+                    result = math.ceil(min_val / multiple) * multiple
+                    return int(result) if result >= min_val else int(multiple)
+                return int(multiple)  # Return the smallest valid multiple
+
+            # No multipleOf, just respect minimum/maximum constraints
             if min_val is not None:
                 # For exclusiveMinimum, add 1
                 if "exclusiveMinimum" in spec:

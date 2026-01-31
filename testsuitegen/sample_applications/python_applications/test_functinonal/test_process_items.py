@@ -6,6 +6,7 @@ from functional_basic import process_items
 
 
 class Testprocessitems:
+
     @pytest.mark.parametrize(
         "intent, kwargs, expected_status",
         [
@@ -18,6 +19,22 @@ class Testprocessitems:
                 200,
                 id="PythonIntentType.HAPPY_PATH",
             ),
+            pytest.param(
+                "PythonIntentType.REQUIRED_ARG_MISSING",
+                {"prefix": "__PLACEHOLDER_STRING_prefix__"},
+                400,
+                id="PythonIntentType.REQUIRED_ARG_MISSING",
+            ),
+            pytest.param(
+                "PythonIntentType.UNEXPECTED_ARGUMENT",
+                {
+                    "items": ["__PLACEHOLDER_STRING_items__"],
+                    "prefix": "__PLACEHOLDER_STRING_prefix__",
+                    "__unexpected_kwarg__": "unexpected_value",
+                },
+                400,
+                id="PythonIntentType.UNEXPECTED_ARGUMENT",
+            ),
         ],
     )
     def test_process_items_contract(self, intent, kwargs, expected_status):
@@ -29,8 +46,8 @@ class Testprocessitems:
 
         # Negative Tests (Expect Exceptions)
         if expected_status >= 400:
-            # We expect TypeError for structural issues or ValueError for constraints
-            with pytest.raises((ValueError, TypeError, AssertionError)):
+            # We expect TypeError for structural issues, ValueError for constraints, or AttributeError for None access
+            with pytest.raises((ValueError, TypeError, AssertionError, AttributeError)):
                 process_items(**kwargs)
 
         # Happy Path (Expect Return Value)

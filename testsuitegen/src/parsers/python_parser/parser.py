@@ -57,10 +57,12 @@ class PythonParser:
         """
         class_name = class_node.name
         docstring = ast.get_docstring(class_node) or ""
-        
+
         # Check Bases for Enum
-        is_enum = any(self._get_name_from_node(base) == "Enum" for base in class_node.bases)
-        
+        is_enum = any(
+            self._get_name_from_node(base) == "Enum" for base in class_node.bases
+        )
+
         # Check Decorators for Dataclasses
         decorators = []
         is_dataclass = False
@@ -70,7 +72,7 @@ class PythonParser:
                 dec_name = dec.id
             elif isinstance(dec, ast.Call) and isinstance(dec.func, ast.Name):
                 dec_name = dec.func.id
-            
+
             if dec_name:
                 decorators.append(f"@{dec_name}")
                 if "dataclass" in dec_name:
@@ -89,32 +91,32 @@ class PythonParser:
                             if isinstance(item.value, ast.Constant):
                                 member_value = item.value.value
                             values.append({"name": member_name, "value": member_value})
-            
+
             return {
                 "id": class_name,
                 "kind": "enum",
                 "description": docstring,
-                "values": values
+                "values": values,
             }
 
         # Otherwise, treat as Model (Dataclass or Pydantic or TypedDict)
         properties = {}
         required = []
-        
+
         for item in class_node.body:
             if isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name):
                 # Field: name: type = default
                 field_name = item.target.id
                 field_schema = self._node_to_schema(item.annotation)
                 properties[field_name] = field_schema
-                
+
                 # Check for default value
                 if item.value is None:
                     # No default value -> required
                     # Check if type is Optional/Nullable
                     if not field_schema.get("nullable", False):
                         required.append(field_name)
-        
+
         return {
             "id": class_name,
             "kind": "model",
@@ -123,8 +125,8 @@ class PythonParser:
             "schema": {
                 "type": "object",
                 "properties": properties,
-                "required": required
-            }
+                "required": required,
+            },
         }
 
     def _parse_function(self, func_node) -> dict:
@@ -188,8 +190,6 @@ class PythonParser:
             self._node_to_schema(func_node.returns) if func_node.returns else {}
         )
 
-
-
         # 6. Construct IR
         return {
             "id": function_name,
@@ -217,8 +217,6 @@ class PythonParser:
             "errors": [],  # Will be populated by LLM in Step 2
         }
 
-
-
     def _node_to_schema(self, node) -> dict:
         """
         Recursively converts an AST node into a JSON Schema dictionary.
@@ -242,27 +240,38 @@ class PythonParser:
         # 4. Subscripts (List[int], Union[A, B], Optional[T])
         if isinstance(node, ast.Subscript):
             container_name = self._get_name_from_node(node.value)
-            
+
             # Unbox the slice
             if sys.version_info < (3, 9) and isinstance(node.slice, ast.Index):
-                 slice_node = node.slice.value
+                slice_node = node.slice.value
             else:
-                 slice_node = node.slice
+                slice_node = node.slice
 
             # --- List / Set / Iterable ---
-            if container_name in ["List", "list", "Set", "set", "FrozenSet", "Iterable", "Sequence", "Deque"]:
+            if container_name in [
+                "List",
+                "list",
+                "Set",
+                "set",
+                "FrozenSet",
+                "Iterable",
+                "Sequence",
+                "Deque",
+            ]:
                 item_schema = self._node_to_schema(slice_node)
                 return {"type": "array", "items": item_schema}
 
             # --- Tuple ---
             if container_name in ["Tuple", "tuple"]:
                 if isinstance(slice_node, ast.Tuple):
-                    items_schemas = [self._node_to_schema(elt) for elt in slice_node.elts]
+                    items_schemas = [
+                        self._node_to_schema(elt) for elt in slice_node.elts
+                    ]
                     return {
                         "type": "array",
                         "prefixItems": items_schemas,
                         "minItems": len(items_schemas),
-                        "maxItems": len(items_schemas)
+                        "maxItems": len(items_schemas),
                     }
                 else:
                     # Tuple[int] matches Tuple[int, ...] in some versions, or single item tuple
@@ -288,11 +297,11 @@ class PythonParser:
             # --- Literal ---
             if container_name == "Literal":
                 return self._handle_literal_node(slice_node)
-                
+
             # --- Type or ClassVar ---
             if container_name in ["Type", "ClassVar"]:
                 return self._node_to_schema(slice_node)
-            
+
             # --- Callable ---
             if container_name in ["Callable"]:
                 return {"type": "object", "description": "Callable/Function"}
@@ -312,22 +321,24 @@ class PythonParser:
                     values.append(elt.value)
         elif isinstance(slice_node, ast.Constant):
             values.append(slice_node.value)
-            
+
         if not values:
             return {}
-            
+
         # Determine strict type if all match
         types = set(type(v) for v in values)
         schema_type = "string"
-        if types == {int}: schema_type = "integer"
-        elif types == {float}: schema_type = "number"
-        elif types == {bool}: schema_type = "boolean"
+        if types == {int}:
+            schema_type = "integer"
+        elif types == {float}:
+            schema_type = "number"
+        elif types == {bool}:
+            schema_type = "boolean"
         # Mixed types -> no 'type' field, just enum
-        
+
         if len(types) == 1:
             return {"type": schema_type, "enum": values}
         return {"enum": values}
-
 
     def _resolve_name(self, name: str) -> dict:
         """Maps a type name to a schema."""
@@ -354,7 +365,7 @@ class PythonParser:
         if name in self.type_registry:
             type_def = self.type_registry[name]
             kind = type_def.get("kind", "model")
-            
+
             if kind == "enum":
                 # Return enum schema with string type and enum values
                 values = type_def.get("values", [])
@@ -487,6 +498,7 @@ def simple_function(a: int, b: str = "default") -> str:
     print("✅ AST Parser Test")
     print(json.dumps(ir, indent=2))
 
+
 def parse_python_function(func) -> dict:
     """
     Helper function to parse a Python function object directly.
@@ -499,7 +511,7 @@ def parse_python_function(func) -> dict:
         if result["operations"]:
             return result["operations"][0]
         if result["types"]:
-             return result["types"][0]
+            return result["types"][0]
         return {}
     except Exception as e:
         logger.error(f"Failed to parse function object: {e}")

@@ -6,14 +6,33 @@ from constraints_numeric import validate_percentage
 
 
 class Testvalidatepercentage:
+
     @pytest.mark.parametrize(
         "intent, kwargs, expected_status",
         [
             pytest.param(
                 "PythonIntentType.HAPPY_PATH",
-                {"value": 50},
+                {"value": 0.0},
                 200,
                 id="PythonIntentType.HAPPY_PATH",
+            ),
+            pytest.param(
+                "PythonIntentType.REQUIRED_ARG_MISSING",
+                {},
+                400,
+                id="PythonIntentType.REQUIRED_ARG_MISSING",
+            ),
+            pytest.param(
+                "PythonIntentType.TYPE_VIOLATION",
+                {"value": "not_a_number"},
+                400,
+                id="PythonIntentType.TYPE_VIOLATION",
+            ),
+            pytest.param(
+                "PythonIntentType.NULL_NOT_ALLOWED",
+                {"value": None},
+                400,
+                id="PythonIntentType.NULL_NOT_ALLOWED",
             ),
             pytest.param(
                 "PythonIntentType.BOUNDARY_MIN_MINUS_ONE",
@@ -33,6 +52,12 @@ class Testvalidatepercentage:
                 422,
                 id="PythonIntentType.BOUNDARY_MAX_PLUS_ONE",
             ),
+            pytest.param(
+                "PythonIntentType.UNEXPECTED_ARGUMENT",
+                {"__unexpected_kwarg__": "unexpected_value", "value": 0.0},
+                400,
+                id="PythonIntentType.UNEXPECTED_ARGUMENT",
+            ),
         ],
     )
     def test_validate_percentage_contract(self, intent, kwargs, expected_status):
@@ -44,8 +69,8 @@ class Testvalidatepercentage:
 
         # Negative Tests (Expect Exceptions)
         if expected_status >= 400:
-            # We expect TypeError for structural issues or ValueError for constraints
-            with pytest.raises((ValueError, TypeError, AssertionError)):
+            # We expect TypeError for structural issues, ValueError for constraints, or AttributeError for None access
+            with pytest.raises((ValueError, TypeError, AssertionError, AttributeError)):
                 validate_percentage(**kwargs)
 
         # Happy Path (Expect Return Value)

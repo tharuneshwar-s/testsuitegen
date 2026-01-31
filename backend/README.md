@@ -45,33 +45,49 @@ uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 ```text
 backend/
 ├── src/
+│   ├── __init__.py
 │   ├── main.py                 # FastAPI application entry point
 │   ├── config.py               # Environment variables and global settings
 │   ├── exceptions.py           # API-specific exception handlers
-│   ├── rate_limiter.py         # Request rate limiting logic
-│   ├── core/                   # Business Logic & Orchestration
-│   │   ├── intents.py          # Intent analysis orchestration
-│   │   ├── intermediate_request.py # IR processing
+│   ├── rate_limiter.py         # Request rate limiting logic (SlowAPI)
+│   │
+│   ├── core/                   # Business Logic & Pipeline Orchestration
+│   │   ├── __init__.py
+│   │   ├── pipeline.py         # Main 5-stage generation pipeline coordinator
 │   │   ├── parsing.py          # Specification parsing wrappers
-│   │   ├── payloads.py         # Payload enhancement logic
-│   │   └── pipeline.py         # Main generation pipeline coordination
-│   ├── database/               # Data Persistence
-│   │   └── store.py            # Job state and status management
-│   ├── models/                 # Pydantic Schemas
-│   │   ├── intents.py          # Schema for test intents
-│   │   ├── jobs.py             # Schema for generation jobs
-│   │   ├── llms.py             # LLM configuration models
+│   │   ├── intermediate_request.py # IR construction logic
+│   │   ├── intents.py          # Intent discovery orchestration
+│   │   └── payloads.py         # Payload generation & mutation
+│   │
+│   ├── database/               # Data Persistence (Supabase)
+│   │   ├── __init__.py
+│   │   └── store.py            # Job state, status, and artifact management
+│   │
+│   ├── models/                 # Pydantic Request/Response Schemas
+│   │   ├── __init__.py
+│   │   ├── intents.py          # Intent extraction models
+│   │   ├── jobs.py             # Job lifecycle models
+│   │   ├── llms.py             # LLM provider configuration
 │   │   └── payloads.py         # Payload data models
-│   ├── monitoring/             # Logging and telemetry
-│   │   ├── log_capture.py      # Real-time log capture
+│   │
+│   ├── monitoring/             # Logging and Observability
+│   │   ├── __init__.py
+│   │   ├── log_capture.py      # Real-time log streaming to frontend
 │   │   └── logging.py          # Logger configuration
+│   │
 │   └── routes/                 # API Endpoint Definitions
+│       ├── __init__.py
 │       ├── intents/
+│       │   ├── __init__.py
 │       │   └── controller.py   # Intent extraction endpoints
 │       └── jobs/
-│           ├── controller.py   # Job management endpoints
-│           └── service.py      # Job-related business logic
-├── requirements.txt            # Main dependencies
+│           ├── __init__.py
+│           ├── controller.py   # Job CRUD endpoints
+│           └── service.py      # Job business logic
+│
+├── logs/                       # Application logs
+├── tmp/                        # Temporary artifacts
+├── requirements.txt            # Production dependencies
 ├── requirements-dev.txt        # Development dependencies
 └── .env.example                # Configuration template
 ```
@@ -93,7 +109,7 @@ The backend requires the following configuration in a `.env` file:
 
 ## Core Responsibilities
 
-- **Spec Parsing**: Converts various API spec formats into standard representations.
-- **Pipeline Orchestration**: Manages the sequential steps of intent discovery, IR generation, and code enhancement.
-- **Progress Tracking**: Reports real-time status updates back to the frontend through Supabase/Websockets.
+- **Spec Parsing**: Converts various API spec formats (OpenAPI, Python, TypeScript) into standard representations.
+- **Pipeline Orchestration**: Manages the 5-stage deterministic pipeline (Parsing → IR → Intents → Payloads → Tests).
+- **Progress Tracking**: Reports real-time status updates back to the frontend through Supabase.
 - **Artifact Hosting**: Manages storage and retrieval of generated test suites.

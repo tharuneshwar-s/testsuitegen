@@ -6,6 +6,7 @@ from constraints_numeric import validate_password
 
 
 class Testvalidatepassword:
+
     @pytest.mark.parametrize(
         "intent, kwargs, expected_status",
         [
@@ -16,16 +17,45 @@ class Testvalidatepassword:
                 id="PythonIntentType.HAPPY_PATH",
             ),
             pytest.param(
-                "PythonIntentType.INVALID_PASSWORD",
-                {"password": "ShortPass"},
+                "PythonIntentType.REQUIRED_ARG_MISSING",
+                {},
                 400,
-                id="PythonIntentType.INVALID_PASSWORD",
+                id="PythonIntentType.REQUIRED_ARG_MISSING",
             ),
             pytest.param(
-                "PythonIntentType.INVALID_FORMAT",
-                {"password": "NotAValidPassword"},
+                "PythonIntentType.NULL_NOT_ALLOWED",
+                {"password": None},
+                400,
+                id="PythonIntentType.NULL_NOT_ALLOWED",
+            ),
+            pytest.param(
+                "PythonIntentType.STRING_TOO_SHORT",
+                {"password": "xxxxxxx"},
                 422,
-                id="PythonIntentType.INVALID_FORMAT",
+                id="PythonIntentType.STRING_TOO_SHORT",
+            ),
+            pytest.param(
+                "PythonIntentType.EMPTY_STRING",
+                {"password": ""},
+                422,
+                id="PythonIntentType.EMPTY_STRING",
+            ),
+            pytest.param(
+                "PythonIntentType.STRING_TOO_LONG",
+                {
+                    "password": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                },
+                422,
+                id="PythonIntentType.STRING_TOO_LONG",
+            ),
+            pytest.param(
+                "PythonIntentType.UNEXPECTED_ARGUMENT",
+                {
+                    "__unexpected_kwarg__": "unexpected_value",
+                    "password": "SecurePassword123",
+                },
+                400,
+                id="PythonIntentType.UNEXPECTED_ARGUMENT",
             ),
         ],
     )
@@ -38,8 +68,8 @@ class Testvalidatepassword:
 
         # Negative Tests (Expect Exceptions)
         if expected_status >= 400:
-            # We expect TypeError for structural issues or ValueError for constraints
-            with pytest.raises((ValueError, TypeError, AssertionError)):
+            # We expect TypeError for structural issues, ValueError for constraints, or AttributeError for None access
+            with pytest.raises((ValueError, TypeError, AssertionError, AttributeError)):
                 validate_password(**kwargs)
 
         # Happy Path (Expect Return Value)

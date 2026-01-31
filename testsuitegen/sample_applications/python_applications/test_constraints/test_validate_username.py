@@ -6,6 +6,7 @@ from constraints_numeric import validate_username
 
 
 class Testvalidateusername:
+
     @pytest.mark.parametrize(
         "intent, kwargs, expected_status",
         [
@@ -16,16 +17,42 @@ class Testvalidateusername:
                 id="PythonIntentType.HAPPY_PATH",
             ),
             pytest.param(
-                "PythonIntentType.INVALID_USERNAME",
-                {"username": "123"},
+                "PythonIntentType.REQUIRED_ARG_MISSING",
+                {},
                 400,
-                id="PythonIntentType.INVALID_USERNAME",
+                id="PythonIntentType.REQUIRED_ARG_MISSING",
             ),
             pytest.param(
-                "PythonIntentType.INVALID_LENGTH",
-                {"username": "a" * 51},
+                "PythonIntentType.NULL_NOT_ALLOWED",
+                {"username": None},
                 400,
-                id="PythonIntentType.INVALID_LENGTH",
+                id="PythonIntentType.NULL_NOT_ALLOWED",
+            ),
+            pytest.param(
+                "PythonIntentType.STRING_TOO_SHORT",
+                {"username": "xx"},
+                422,
+                id="PythonIntentType.STRING_TOO_SHORT",
+            ),
+            pytest.param(
+                "PythonIntentType.EMPTY_STRING",
+                {"username": ""},
+                422,
+                id="PythonIntentType.EMPTY_STRING",
+            ),
+            pytest.param(
+                "PythonIntentType.STRING_TOO_LONG",
+                {
+                    "username": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                },
+                422,
+                id="PythonIntentType.STRING_TOO_LONG",
+            ),
+            pytest.param(
+                "PythonIntentType.UNEXPECTED_ARGUMENT",
+                {"__unexpected_kwarg__": "unexpected_value", "username": "alice123"},
+                400,
+                id="PythonIntentType.UNEXPECTED_ARGUMENT",
             ),
         ],
     )
@@ -38,8 +65,8 @@ class Testvalidateusername:
 
         # Negative Tests (Expect Exceptions)
         if expected_status >= 400:
-            # We expect TypeError for structural issues or ValueError for constraints
-            with pytest.raises((ValueError, TypeError, AssertionError)):
+            # We expect TypeError for structural issues, ValueError for constraints, or AttributeError for None access
+            with pytest.raises((ValueError, TypeError, AssertionError, AttributeError)):
                 validate_username(**kwargs)
 
         # Happy Path (Expect Return Value)

@@ -53,7 +53,7 @@ class TransferRequest(BaseModel):
     from_account: int = Field(..., ge=10000, le=99999, description="Source account ID")
     to_account: int = Field(..., ge=10000, le=99999, description="Destination account ID")
     description: Optional[str] = Field(None, max_length=200, description="Optional transfer description")
-
+    
 
 class LimitUpdate(BaseModel):
     daily_limit: int = Field(..., ge=0, le=5000, description="Daily transaction limit")
@@ -89,10 +89,6 @@ async def create_transfer(transfer: TransferRequest):
     Tests: REQUIRED_FIELD_MISSING, TYPE_VIOLATION, BOUNDARY_MIN/MAX, NOT_MULTIPLE_OF.
     """
     transfer_id = f"tx_{len(transfers_db) + 1}"
-    
-    # control empty string test
-    if transfer.description == "":
-        raise HTTPException(status_code=422, detail="Description cannot be an empty string")
     
     transfer_data = {
         "id": transfer_id,

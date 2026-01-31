@@ -139,7 +139,7 @@ class OpenAPIMutator:
                 # Determine the correct invalid type based on expected item type
                 item_schema = schema.get("items", {})
                 item_type = item_schema.get("type", "")
-                
+
                 # Use a value that actually violates the expected type
                 if item_type == "string":
                     invalid_value = 12345  # Use integer to violate string
@@ -151,7 +151,7 @@ class OpenAPIMutator:
                     invalid_value = "__INVALID_TYPE__"  # Use string to violate boolean
                 else:
                     invalid_value = self.INVALID_TYPE  # Default fallback
-                
+
                 self._set_value(payload, target, field, [invalid_value])
         elif intent_type == "DICT_KEY_TYPE_VIOLATION":
             if field:
@@ -170,7 +170,12 @@ class OpenAPIMutator:
         elif intent_type == "ARRAY_ITEM_OBJECT_VALUE_TYPE_VIOLATION":
             if field:
                 # Set array item's object field to wrong type
-                self._set_value(payload, target, field, [{"__nested_type_violation__": self.INVALID_TYPE}])
+                self._set_value(
+                    payload,
+                    target,
+                    field,
+                    [{"__nested_type_violation__": self.INVALID_TYPE}],
+                )
         elif intent_type == "NESTED_ARRAY_ITEM_TYPE_VIOLATION":
             if field:
                 # Set nested array item to wrong type
@@ -195,7 +200,9 @@ class OpenAPIMutator:
             min_items = schema.get("minItems", 1)
             item_template = self._get_array_item_template(schema, target, payload)
             count = max(0, min_items - 1)
-            self._set_value(payload, target, field, [item_template] * count if count > 0 else [])
+            self._set_value(
+                payload, target, field, [item_template] * count if count > 0 else []
+            )
         elif intent_type == "BOUNDARY_MAX_ITEMS_PLUS_ONE":
             max_items = schema.get("maxItems", 10)
             item_template = self._get_array_item_template(schema, target, payload)
@@ -216,7 +223,20 @@ class OpenAPIMutator:
         elif intent_type == "NUMBER_TOO_LARGE":
             self._set_value(payload, target, field, 999999)
         elif intent_type == "NOT_MULTIPLE_OF":
-            self._set_value(payload, target, field, 7)
+            # Calculate a value that violates the multipleOf constraint
+            multiple_of = schema.get("multipleOf", 1)
+            if multiple_of and multiple_of > 0:
+                # Generate a value that's not a multiple
+                # For small multipleOf like 0.01, use a value with more decimal places
+                if multiple_of < 1:
+                    # e.g., multipleOf: 0.01 -> use 7.999 (not a multiple of 0.01)
+                    invalid_val = 7.999
+                else:
+                    # e.g., multipleOf: 5 -> use 7 (not a multiple of 5)
+                    invalid_val = multiple_of + 2
+                self._set_value(payload, target, field, invalid_val)
+            else:
+                self._set_value(payload, target, field, 7)
 
         # Data Edge Cases
         elif intent_type == "EMPTY_STRING":
@@ -387,7 +407,12 @@ class OpenAPIMutator:
     def _get_array_item_template(self, schema: dict, target: str, payload: dict) -> Any:
         """Get a valid item template from existing payload or generate one."""
         field = self._get_target_field(target)
-        if field and field in payload and isinstance(payload[field], list) and len(payload[field]) > 0:
+        if (
+            field
+            and field in payload
+            and isinstance(payload[field], list)
+            and len(payload[field]) > 0
+        ):
             return payload[field][0]
         items_schema = schema.get("items", {})
         return self._valid_value(items_schema)

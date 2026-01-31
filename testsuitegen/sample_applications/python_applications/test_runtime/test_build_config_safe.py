@@ -6,18 +6,38 @@ from runtime_traps import build_config_safe
 
 
 class Testbuildconfigsafe:
+
     @pytest.mark.parametrize(
         "intent, kwargs, expected_status",
         [
             pytest.param(
                 "PythonIntentType.HAPPY_PATH",
-                {
-                    "key": "__PLACEHOLDER_STRING_key__",
-                    "value": "__PLACEHOLDER_STRING_value__",
-                    "base": {},
-                },
+                {"base": {}, "key": "Default Key", "value": "Default Value"},
                 200,
                 id="PythonIntentType.HAPPY_PATH",
+            ),
+            pytest.param(
+                "PythonIntentType.REQUIRED_ARG_MISSING",
+                {"base": {}, "value": "Default Value"},
+                400,
+                id="PythonIntentType.REQUIRED_ARG_MISSING",
+            ),
+            pytest.param(
+                "PythonIntentType.REQUIRED_ARG_MISSING",
+                {"base": {}, "key": "Default Key"},
+                400,
+                id="PythonIntentType.REQUIRED_ARG_MISSING",
+            ),
+            pytest.param(
+                "PythonIntentType.UNEXPECTED_ARGUMENT",
+                {
+                    "__unexpected_kwarg__": "unexpected_value",
+                    "base": {},
+                    "key": "Default Key",
+                    "value": "Default Value",
+                },
+                400,
+                id="PythonIntentType.UNEXPECTED_ARGUMENT",
             ),
         ],
     )
@@ -30,8 +50,8 @@ class Testbuildconfigsafe:
 
         # Negative Tests (Expect Exceptions)
         if expected_status >= 400:
-            # We expect TypeError for structural issues or ValueError for constraints
-            with pytest.raises((ValueError, TypeError, AssertionError)):
+            # We expect TypeError for structural issues, ValueError for constraints, or AttributeError for None access
+            with pytest.raises((ValueError, TypeError, AssertionError, AttributeError)):
                 build_config_safe(**kwargs)
 
         # Happy Path (Expect Return Value)

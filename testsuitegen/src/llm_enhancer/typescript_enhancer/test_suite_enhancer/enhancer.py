@@ -21,35 +21,79 @@ from testsuitegen.src.exceptions.exceptions import LLMError, LLMFatalError
 
 def _clean_llm_response(response: str) -> str:
     """Clean LLM response from markdown formatting and common issues."""
-    # Remove markdown code blocks
-    if response.startswith("```typescript"):
-        response = response[13:]
-    elif response.startswith("```ts"):
-        response = response[5:]
-    elif response.startswith("```javascript"):
-        response = response[13:]
-    elif response.startswith("```js"):
-        response = response[5:]
-    elif response.startswith("```"):
-        response = response[3:]
+    import re
 
-    if response.endswith("```"):
-        response = response[:-3]  # Remove closing ```
+    # Remove markdown code blocks (can appear anywhere)
+    # Handle ```typescript ... ``` blocks
+    response = re.sub(r"```(?:typescript|ts|javascript|js)?\s*", "", response)
+    response = response.replace("```", "")
 
     # Strip whitespace
     response = response.strip()
 
-    # Handle common LLM formatting issues
+    # Handle common LLM formatting issues - remove explanation text
     lines = response.split("\n")
     cleaned_lines = []
+    in_code = False
 
     for line in lines:
-        # Skip empty lines at start/end
-        if not line.strip() and (not cleaned_lines or line == lines[-1]):
-            continue
-        cleaned_lines.append(line)
+        stripped = line.strip()
 
-    return "\n".join(cleaned_lines)
+        # Skip markdown-style headers and explanations
+        if stripped.startswith("**") or stripped.startswith("#"):
+            continue
+        # Skip lines that look like bullet points or explanations
+        if stripped.startswith("- The ") or stripped.startswith("* The "):
+            continue
+        # Skip empty lines at start
+        if not stripped and not cleaned_lines:
+            continue
+        # Detect code start - MUST start with valid TS file beginning
+        if (
+            stripped.startswith("//")
+            or stripped.startswith("import ")
+            or stripped.startswith("describe(")
+            or stripped.startswith("export ")
+        ):
+            in_code = True
+        # If we're in code or line looks like code, keep it
+        if (
+            in_code
+            or stripped.startswith("const ")
+            or stripped.startswith("let ")
+            or stripped.startswith("}")
+            or stripped.startswith("{")
+        ):
+            cleaned_lines.append(line)
+            in_code = True
+        elif not in_code:
+            # Skip non-code lines before code starts
+            continue
+        else:
+            cleaned_lines.append(line)
+
+    result = "\n".join(cleaned_lines)
+
+    # Final safety: if result doesn't look like TS code, return original
+    if not ("describe(" in result or "export" in result):
+        return response
+
+    # CRITICAL: Validate the result starts with a valid TypeScript file beginning
+    # This prevents corrupted partial code from being accepted
+    result_stripped = result.strip()
+    valid_starts = (
+        "import ",  # Import statement
+        "//",  # Comment
+        "/*",  # Multi-line comment
+        "export ",  # Export statement
+        "describe(",  # Jest describe block
+        "const ",  # Constant declaration at file level
+    )
+    if not result_stripped.startswith(valid_starts):
+        # LLM returned partial/corrupted code - reject it
+        return None  # Signal to caller that enhancement failed
+
+    return result
 
 
 def enhance_code(
@@ -109,6 +153,14 @@ def enhance_code(
             # 3. STRICT VALIDATION - Clean and validate
             enhanced = _clean_llm_response(raw_enhanced)
 
+            # Check if cleaning failed (returned None means corrupted code)
+            if enhanced is None:
+                print(
+                    f"   ⚠ LLM returned partial/corrupted code (invalid start). Retrying... Attempt {attempt}"
+                )
+                continue
+                # raise ValueError("LLM returned partial or corrupted code")
+
             # Check if response looks like code (length check)
             if not enhanced or len(enhanced.strip()) < 10:
                 print(
@@ -124,6 +176,28 @@ def enhance_code(
                     f"   ⚠ LLM returned text instead of code. Retrying... Attempt {attempt}"
                 )
                 raise ValueError("LLM returned explanation text instead of code")
+
+            # CRITICAL: Check for forbidden patterns that corrupt the code
+            forbidden_patterns = [
+                "import axios",
+                "from 'axios'",
+                "require('axios')",
+                "import fetch from",
+                "require('node-fetch')",
+                "Axios.RequestConfig",
+                "```typescript",
+                "```ts",
+                "```javascript",
+                "**Explanation**",
+                "Here is",
+                "Here's the",
+            ]
+            for pattern in forbidden_patterns:
+                if pattern in enhanced:
+                    print(
+                        f"   ⚠ LLM added forbidden pattern '{pattern}'. Rejecting. Attempt {attempt}"
+                    )
+                    raise ValueError(f"LLM added forbidden pattern: {pattern}")
 
             # Validate no logic changes
             try:

@@ -17,6 +17,72 @@ Recommended Intents:
 
 from typing import Dict, List, Optional
 import re
+import html
+
+
+# =============================================================================
+# SECURITY HELPER FUNCTIONS (Used by bug fixes)
+# =============================================================================
+
+
+def _validate_not_empty(value: str, field_name: str) -> None:
+    """Validates that a string is not empty or whitespace-only."""
+    if not value or not value.strip():
+        raise ValueError(f"{field_name} cannot be empty or whitespace-only")
+
+
+def _detect_sql_injection(value: str, field_name: str) -> None:
+    """Detects common SQL injection patterns."""
+    # Detect actual injection patterns, not just single quotes (which are valid in SQL)
+    injection_patterns = [
+        r"'\s*(OR|AND)\s*'\d*'\s*=\s*'\d*",  # ' OR '1'='1
+        r"'\s*(OR|AND)\s+\d+\s*=\s*\d+",     # ' OR 1=1
+        r";\s*(DROP|DELETE|UPDATE|INSERT|SELECT)",  # ; DROP TABLE
+        r"--",                                  # SQL comment
+        r"/\*",                                 # Block comment start
+        r"\*/",                                 # Block comment end
+        r"UNION\s+SELECT",                     # UNION SELECT
+        r"'\s*;\s*--",                         # Terminate and comment
+    ]
+    for pattern in injection_patterns:
+        if re.search(pattern, value, re.IGNORECASE):
+            raise ValueError(
+                f"Potential SQL injection detected in {field_name}"
+            )
+
+
+def _detect_xss(value: str, field_name: str) -> None:
+    """Detects common XSS patterns."""
+    dangerous_patterns = [
+        "<script",
+        "</script",
+        "javascript:",
+        "onerror=",
+        "onclick=",
+        "onload=",
+        "onmouseover=",
+        "<img",
+        "<iframe",
+        "<object",
+        "<embed",
+        "<svg",
+        "&#",
+    ]
+    for pattern in dangerous_patterns:
+        if pattern.lower() in value.lower():
+            raise ValueError(
+                f"Potential XSS attack detected in {field_name}: {pattern}"
+            )
+
+
+def _sanitize_html(value: str) -> str:
+    """Escapes HTML entities to prevent XSS."""
+    return html.escape(value, quote=True)
+
+
+# =============================================================================
+# FUNCTION 1: search_users - SQL INJECTION VULNERABILITY
+# =============================================================================
 
 
 def search_users(query: str) -> List[Dict[str, str]]:
@@ -31,13 +97,19 @@ def search_users(query: str) -> List[Dict[str, str]]:
     Returns:
         List of matching users.
     """
-    # This simulates a function that might be vulnerable to SQL injection
-    # In real code, this would use parameterized queries
-    dangerous_patterns = ["'", '"', ";", "--", "/*", "*/", "OR", "AND"]
-    for pattern in dangerous_patterns:
-        if pattern.upper() in query.upper():
-            raise ValueError(f"Invalid character in query: {pattern}")
+    # === BUG FIX: Uncomment the following lines to enable security ===
+    _validate_not_empty(query, "query")
+    _detect_sql_injection(query, "query")
+    _detect_xss(query, "query")
+    # === END BUG FIX ===
+
+    # VULNERABLE: No input validation - accepts any query including SQL injection
     return [{"id": "1", "name": "John", "query": query}]
+
+
+# =============================================================================
+# FUNCTION 2: execute_query - SQL INJECTION VULNERABILITY
+# =============================================================================
 
 
 def execute_query(table: str, conditions: str) -> List[Dict[str, str]]:
@@ -53,13 +125,24 @@ def execute_query(table: str, conditions: str) -> List[Dict[str, str]]:
     Returns:
         Query results.
     """
-    # Validate table name
+    # === BUG FIX: Uncomment the following lines to enable security ===
+    _validate_not_empty(table, "table")
+    _validate_not_empty(conditions, "conditions")
     if not table.isalnum():
-        raise ValueError("Invalid table name")
-    # Basic SQL injection detection
-    if re.search(r"('|--|;|/\*|\*/|DROP|DELETE|UPDATE|INSERT)", conditions, re.I):
-        raise ValueError("Potential SQL injection detected")
+        raise ValueError("Invalid table name - must be alphanumeric")
+    _detect_sql_injection(conditions, "conditions")
+    _detect_xss(conditions, "conditions")
+    # === END BUG FIX ===
+
+    # VULNERABLE: Minimal validation - still allows some SQL injection patterns
+    if not table:
+        raise TypeError("table is required")
     return [{"table": table, "result": "success"}]
+
+
+# =============================================================================
+# FUNCTION 3: render_username - XSS VULNERABILITY
+# =============================================================================
 
 
 def render_username(username: str) -> str:
@@ -74,12 +157,20 @@ def render_username(username: str) -> str:
     Returns:
         Safe HTML string.
     """
-    # Basic XSS detection
-    dangerous_patterns = ["<script", "javascript:", "onerror=", "onclick=", "<img"]
-    for pattern in dangerous_patterns:
-        if pattern.lower() in username.lower():
-            raise ValueError("Potential XSS attack detected")
+    # === BUG FIX: Uncomment the following lines to enable security ===
+    _validate_not_empty(username, "username")
+    _detect_xss(username, "username")
+    _detect_sql_injection(username, "username")
+    username = _sanitize_html(username)
+    # === END BUG FIX ===
+
+    # VULNERABLE: No XSS protection - renders unsanitized HTML
     return f"<span class='username'>{username}</span>"
+
+
+# =============================================================================
+# FUNCTION 4: render_comment - XSS VULNERABILITY
+# =============================================================================
 
 
 def render_comment(comment: str) -> str:
@@ -94,15 +185,20 @@ def render_comment(comment: str) -> str:
     Returns:
         Safe HTML string.
     """
-    # Escape HTML entities
-    escaped = (
-        comment.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-        .replace("'", "&#x27;")
-    )
-    return f"<p class='comment'>{escaped}</p>"
+    # === BUG FIX: Uncomment the following lines to enable security ===
+    _validate_not_empty(comment, "comment")
+    _detect_xss(comment, "comment")
+    _detect_sql_injection(comment, "comment")
+    comment = _sanitize_html(comment)
+    # === END BUG FIX ===
+
+    # VULNERABLE: No validation - only escapes after the fact (doesn't reject)
+    return f"<p class='comment'>{comment}</p>"
+
+
+# =============================================================================
+# FUNCTION 5: read_file - PATH TRAVERSAL VULNERABILITY
+# =============================================================================
 
 
 def read_file(filepath: str) -> str:
@@ -117,12 +213,32 @@ def read_file(filepath: str) -> str:
     Returns:
         File contents.
     """
+    # === BUG FIX: Uncomment the following lines to enable security ===
+    _validate_not_empty(filepath, "filepath")
     # Detect path traversal attempts
-    if ".." in filepath or filepath.startswith("/") or ":" in filepath:
-        raise ValueError("Path traversal attempt detected")
+    if ".." in filepath:
+        raise ValueError("Path traversal attempt detected: directory traversal")
+    if filepath.startswith("/"):
+        raise ValueError("Path traversal attempt detected: absolute unix path")
+    # Allow Windows paths like C:\Users\... but block other colon usage
+    # (colon after single letter at start is Windows drive letter)
+    if ":" in filepath:
+        # Check if it's NOT a valid Windows drive letter pattern
+        if not re.match(r'^[A-Za-z]:\\', filepath):
+            raise ValueError("Path traversal attempt detected: invalid colon usage")
     if any(c in filepath for c in ["~", "$", "|", "&", ";"]):
         raise ValueError("Invalid characters in path")
+    # === END BUG FIX ===
+
+    # VULNERABLE: No path validation - allows path traversal attacks
+    if not filepath:
+        raise TypeError("filepath is required")
     return f"Contents of {filepath}"
+
+
+# =============================================================================
+# FUNCTION 6: download_file - PATH TRAVERSAL VULNERABILITY
+# =============================================================================
 
 
 def download_file(filename: str) -> Dict[str, str]:
@@ -137,12 +253,28 @@ def download_file(filename: str) -> Dict[str, str]:
     Returns:
         File download info.
     """
+    # === BUG FIX: Uncomment the following lines to enable security ===
+    _validate_not_empty(filename, "filename")
     # Normalize and validate filename
     if "/" in filename or "\\" in filename:
         raise ValueError("Directory separators not allowed in filename")
     if filename.startswith("."):
         raise ValueError("Hidden files not allowed")
+    if ".." in filename:
+        raise ValueError("Path traversal not allowed")
+    # === END BUG FIX ===
+
+    # SECURE: This function already has good validation (keeping as-is)
+    if "/" in filename or "\\" in filename:
+        raise ValueError("Directory separators not allowed in filename")
+    if filename.startswith("."):
+        raise ValueError("Hidden files not allowed")
     return {"filename": filename, "status": "ready"}
+
+
+# =============================================================================
+# FUNCTION 7: execute_command - COMMAND INJECTION VULNERABILITY
+# =============================================================================
 
 
 def execute_command(action: str, target: str) -> str:
@@ -158,18 +290,28 @@ def execute_command(action: str, target: str) -> str:
     Returns:
         Command result.
     """
-    # Whitelist allowed actions
+    # Whitelist allowed actions (keep this - it's structural validation)
     allowed_actions = ["list", "show", "describe", "count"]
     if action not in allowed_actions:
         raise ValueError(f"Action must be one of: {allowed_actions}")
 
+    # === BUG FIX: Uncomment the following lines to enable security ===
+    _validate_not_empty(target, "target")
+    _detect_sql_injection(target, "target")
     # Detect command injection
-    dangerous_chars = [";", "|", "&", "$", "`", "(", ")", "{", "}", "<", ">"]
+    dangerous_chars = [";", "|", "&", "$", "`", "(", ")", "{", "}", "<", ">", "'", '"']
     for char in dangerous_chars:
         if char in target:
             raise ValueError(f"Invalid character in target: {char}")
+    # === END BUG FIX ===
 
+    # VULNERABLE: Missing command injection detection for target parameter
     return f"Executed {action} on {target}"
+
+
+# =============================================================================
+# FUNCTION 8: run_script - COMMAND INJECTION VULNERABILITY
+# =============================================================================
 
 
 def run_script(script_name: str, args: str) -> str:
@@ -185,13 +327,18 @@ def run_script(script_name: str, args: str) -> str:
     Returns:
         Script output.
     """
-    # Whitelist scripts
-    allowed_scripts = ["backup", "cleanup", "report", "status"]
+    # Whitelist scripts (keep this - it's structural validation)
+    allowed_scripts = ["backup", "cleanup", "report", "status", "update_user_profile", "deploy", "test"]
     if script_name not in allowed_scripts:
         raise ValueError(f"Script must be one of: {allowed_scripts}")
 
+    # === BUG FIX: Uncomment the following lines to enable security ===
+    _validate_not_empty(args, "args")
     # Detect injection attempts
-    if re.search(r"[;&|`$<>()]", args):
+    if re.search(r"[;&|`$<>()'\"]", args):
         raise ValueError("Invalid characters in arguments")
+    _detect_sql_injection(args, "args")
+    # === END BUG FIX ===
 
+    # VULNERABLE: Missing argument validation - allows command injection
     return f"Script {script_name} executed with args: {args}"

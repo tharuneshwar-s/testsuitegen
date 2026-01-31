@@ -29,25 +29,133 @@
 
 **TestSuiteGen** is an AI-powered automated test generation platform. It ingests API specifications (OpenAPI, Swagger) or source code (Python, TypeScript), understands the logic using LLMs (Gemini, Llama, etc.), and generates comprehensive test suites (Pytest, Jest) with realistic payloads and edge cases.
 
+## Architecture: Deterministic 5-Stage Pipeline
+
+TestSuiteGen uses a **deterministic pipeline** that ensures consistent, reproducible test generation:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                    TESTSUITEGEN PIPELINE                                            │
+└─────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+     │   STAGE 1    │     │   STAGE 2    │     │   STAGE 3    │     │   STAGE 4    │     │   STAGE 5    │
+     │   PARSING    │────▶│   IR BUILD   │────▶│    INTENT    │────▶│   PAYLOAD    │────▶│  TESTSUITE   │
+     │              │     │              │     │  DISCOVERY   │     │  GENERATION  │     │  RENDERING   │
+     └──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
+            │                    │                    │                    │                    │
+            ▼                    ▼                    ▼                    ▼                    ▼
+     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+     │  OpenAPI     │     │  Unified IR  │     │  Test Intent │     │   Mutated    │     │  Pytest/Jest │
+     │  Python AST  │     │  Operations  │     │   Catalog    │     │   Payloads   │     │  Test Files  │
+     │  TypeScript  │     │  Schemas     │     │              │     │              │     │              │
+     └──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
+```
+
+### Pipeline Stages
+
+| Stage | Component | Description | Key Files |
+|-------|-----------|-------------|-----------|
+| **1. Parsing** | `parsers/` | Parse source into normalized AST/Schema | `openapi_parser/`, `python_parser/`, `typescript_parser/` |
+| **2. IR Build** | `generators/ir_generator/` | Build unified Intermediate Representation | `builder.py`, `validator.py` |
+| **3. Intent Discovery** | `generators/intent_generator/` | Identify testable scenarios per operation | `openapi_intent/`, `python_intent/`, `typescript_intent/` |
+| **4. Payload Generation** | `generators/payloads_generator/` | Generate valid payloads, then mutate per intent | `generator.py`, `mutator.py` |
+| **5. Test Rendering** | `testsuite/` | Render Jinja2 templates + optional LLM polish | `generator.py`, `templates.py`, `analyzer.py`, `planner.py`, `compiler.py` |
+
+### Stage 5: Test Rendering Sub-Pipeline
+
+The test rendering stage uses a **deterministic sub-pipeline** for API tests:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                        TESTSUITE RENDERING SUB-PIPELINE                             │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                     │
+│  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐         │
+│  │   Static     │   │    Setup     │   │   Fixture    │   │   Template   │         │
+│  │  Analyzer    │──▶│   Planner    │──▶│   Compiler   │──▶│   Renderer   │         │
+│  │              │   │              │   │              │   │              │         │
+│  └──────────────┘   └──────────────┘   └──────────────┘   └──────────────┘         │
+│        │                  │                  │                  │                  │
+│        ▼                  ▼                  ▼                  ▼                  │
+│  Detect resource    Plan resource      Generate pytest    Render final           │
+│  dependencies       creation order     fixtures/Jest      test file              │
+│  (GET needs ID)     (POST before GET)  beforeAll hooks                           │
+│                                                                                     │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼ (Optional)
+                              ┌──────────────────┐
+                              │   LLM Polisher   │
+                              │  (Docs & Style)  │
+                              └──────────────────┘
+```
+
 ## Project Structure
 
 ```text
 .
-├── backend/                # FastAPI Orchestration Service
+├── backend/                    # FastAPI Orchestration Service
 │   ├── src/
-│   │   ├── core/           # Generation pipeline & orchestrators
-│   │   ├── routes/         # API endpoints (Jobs, Intents)
-│   │   └── database/       # Job state management (Supabase)
-│   └── .env.example        # Backend config template
-├── frontend/               # Next.js Dashboard UI
-│   ├── app/                # App Router (Dashboard implementation)
-│   ├── components/         # Reactive UI (Pipeline monitoring, Monaco editor)
-│   └── lib/                # API client & utilities
-└── testsuitegen/           # Core Python Logic (Parsing & Generation)
+│   │   ├── main.py             # Application entry point
+│   │   ├── config.py           # Environment & settings
+│   │   ├── core/               # Pipeline orchestration
+│   │   │   ├── pipeline.py     # Main generation coordinator
+│   │   │   ├── parsing.py      # Spec parsing wrappers
+│   │   │   ├── intents.py      # Intent generation
+│   │   │   └── payloads.py     # Payload processing
+│   │   ├── routes/             # API endpoints
+│   │   │   ├── jobs/           # Job management
+│   │   │   └── intents/        # Intent extraction
+│   │   ├── models/             # Pydantic schemas
+│   │   ├── database/           # Supabase integration
+│   │   └── monitoring/         # Logging & telemetry
+│   └── requirements.txt
+│
+├── frontend/                   # Next.js Dashboard UI
+│   ├── app/                    # App Router pages
+│   ├── components/             # React components
+│   │   ├── EditorPanel.tsx     # Monaco code editor
+│   │   ├── PipelineStatus.tsx  # Generation progress
+│   │   ├── LogViewer.tsx       # Real-time logs
+│   │   └── ArtifactsTabs.tsx   # Generated files viewer
+│   └── lib/                    # API client & utilities
+│
+└── testsuitegen/               # Core Python Library
     └── src/
-        ├── generators/     # Intent extraction & IR construction
-        ├── llm_enhancer/   # Multi-provider AI logic (Gemini, Groq, local)
-        └── testsuite/      # Jinja2 rendering templates
+        ├── parsers/            # Source Code Parsers
+        │   ├── openapi_parser/ # OpenAPI/Swagger
+        │   ├── python_parser/  # Python AST
+        │   └── typescript_parser/ # Tree-sitter TS
+        │
+        ├── generators/         # Generation Logic
+        │   ├── ir_generator/   # IR construction
+        │   ├── intent_generator/ # Intent discovery
+        │   │   ├── openapi_intent/
+        │   │   ├── python_intent/
+        │   │   └── typescript_intent/
+        │   └── payloads_generator/ # Payload mutation
+        │       ├── openapi_mutator/
+        │       ├── python_mutator/
+        │       └── typescript_mutator/
+        │
+        ├── testsuite/          # Test Rendering (NEW PIPELINE)
+        │   ├── generator.py    # Main orchestrator
+        │   ├── templates.py    # Jinja2 templates
+        │   ├── analyzer.py     # Static analysis
+        │   ├── planner.py      # Setup planning
+        │   └── compiler.py     # Fixture compilation
+        │
+        └── llm_enhancer/       # AI Enhancement Layer
+            ├── providers/      # LLM integrations
+            │   ├── gemini.py
+            │   ├── groq.py
+            │   ├── vllm.py
+            │   └── lmstudio.py
+            ├── python_enhancer/
+            ├── typescript_enhancer/
+            ├── payload_enhancer/
+            └── circuit_breaker.py
 ```
 
 - **[Frontend](frontend/README.md)**: Real-time dashboard for managing generation jobs, streaming logs, and reviewing generated artifacts.
@@ -56,13 +164,15 @@
 
 ## Key Features
 
-- **Multi-Source Ingestion**: Generate tests from OpenAPI/Swagger definitions, Python source code (AST-based), or TypeScript files.
-- **AI-Enhanced Payloads**: Leverages state-of-the-art LLMs (Gemini, Groq, local Llama) to generate context-aware, realistic validation data beyond simple random values.
-- **Intent Discovery**: Automatically identifies application intent, identifying critical paths, authentication requirements, and data constraints.
-- **Polyglot Test Generation**: Renders production-ready test code in multiple frameworks including **Pytest** and **Jest**.
-- **Real-time Pipeline**: Track generation progress step-by-step through a modern, reactive interface with live status updates.
-- **Resilience & Reliability**: Built-in **Circuit Breaker** patterns and exponential backoff to handle LLM API rate limits and failures gracefully.
-- **Artifact Management**: Integrated storage via Supabase for generated test suites and execution reports.
+- **Multi-Source Ingestion**: Generate tests from OpenAPI/Swagger definitions, Python source code (AST-based), or TypeScript files (Tree-sitter).
+- **Deterministic Pipeline**: 5-stage pipeline ensures consistent, reproducible test generation without LLM randomness in core logic.
+- **Intent Discovery**: Automatically identifies test scenarios including `HAPPY_PATH`, `REQUIRED_FIELD_MISSING`, `TYPE_VIOLATION`, `BOUNDARY_*`, `PATTERN_MISMATCH`, and more.
+- **Smart Fixture Generation**: Static analyzer detects resource dependencies, planner orders creation, compiler generates pytest fixtures/Jest hooks.
+- **AI-Enhanced Documentation**: Optional LLM polisher improves test readability while preserving payload integrity.
+- **Polyglot Test Generation**: Renders production-ready test code in **Pytest** and **Jest** frameworks.
+- **Real-time Pipeline**: Track generation progress step-by-step through a modern, reactive interface.
+- **Resilience & Reliability**: Built-in **Circuit Breaker** patterns and exponential backoff for LLM API handling.
+- **Artifact Management**: Integrated storage via Supabase for generated test suites.
 
 ## Quick Start
 

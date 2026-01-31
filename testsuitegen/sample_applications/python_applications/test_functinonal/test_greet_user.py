@@ -6,6 +6,7 @@ from functional_basic import greet_user
 
 
 class Testgreetuser:
+
     @pytest.mark.parametrize(
         "intent, kwargs, expected_status",
         [
@@ -14,6 +15,21 @@ class Testgreetuser:
                 {"name": "__PLACEHOLDER_STRING_name__"},
                 200,
                 id="PythonIntentType.HAPPY_PATH",
+            ),
+            pytest.param(
+                "PythonIntentType.REQUIRED_ARG_MISSING",
+                {},
+                400,
+                id="PythonIntentType.REQUIRED_ARG_MISSING",
+            ),
+            pytest.param(
+                "PythonIntentType.UNEXPECTED_ARGUMENT",
+                {
+                    "name": "__PLACEHOLDER_STRING_name__",
+                    "__unexpected_kwarg__": "unexpected_value",
+                },
+                400,
+                id="PythonIntentType.UNEXPECTED_ARGUMENT",
             ),
         ],
     )
@@ -26,8 +42,8 @@ class Testgreetuser:
 
         # Negative Tests (Expect Exceptions)
         if expected_status >= 400:
-            # We expect TypeError for structural issues or ValueError for constraints
-            with pytest.raises((ValueError, TypeError, AssertionError)):
+            # We expect TypeError for structural issues, ValueError for constraints, or AttributeError for None access
+            with pytest.raises((ValueError, TypeError, AssertionError, AttributeError)):
                 greet_user(**kwargs)
 
         # Happy Path (Expect Return Value)

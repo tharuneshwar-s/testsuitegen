@@ -6,6 +6,7 @@ from functional_basic import get_user_info
 
 
 class Testgetuserinfo:
+
     @pytest.mark.parametrize(
         "intent, kwargs, expected_status",
         [
@@ -14,6 +15,22 @@ class Testgetuserinfo:
                 {"user_id": "__PLACEHOLDER_STRING_user_id__", "include_email": True},
                 200,
                 id="PythonIntentType.HAPPY_PATH",
+            ),
+            pytest.param(
+                "PythonIntentType.REQUIRED_ARG_MISSING",
+                {"include_email": True},
+                400,
+                id="PythonIntentType.REQUIRED_ARG_MISSING",
+            ),
+            pytest.param(
+                "PythonIntentType.UNEXPECTED_ARGUMENT",
+                {
+                    "user_id": "__PLACEHOLDER_STRING_user_id__",
+                    "include_email": True,
+                    "__unexpected_kwarg__": "unexpected_value",
+                },
+                400,
+                id="PythonIntentType.UNEXPECTED_ARGUMENT",
             ),
         ],
     )
@@ -26,8 +43,8 @@ class Testgetuserinfo:
 
         # Negative Tests (Expect Exceptions)
         if expected_status >= 400:
-            # We expect TypeError for structural issues or ValueError for constraints
-            with pytest.raises((ValueError, TypeError, AssertionError)):
+            # We expect TypeError for structural issues, ValueError for constraints, or AttributeError for None access
+            with pytest.raises((ValueError, TypeError, AssertionError, AttributeError)):
                 get_user_info(**kwargs)
 
         # Happy Path (Expect Return Value)

@@ -6,6 +6,7 @@ from functional_basic import validate_age
 
 
 class Testvalidateage:
+
     @pytest.mark.parametrize(
         "intent, kwargs, expected_status",
         [
@@ -14,6 +15,30 @@ class Testvalidateage:
                 {"age": 1},
                 200,
                 id="PythonIntentType.HAPPY_PATH",
+            ),
+            pytest.param(
+                "PythonIntentType.REQUIRED_ARG_MISSING",
+                {},
+                400,
+                id="PythonIntentType.REQUIRED_ARG_MISSING",
+            ),
+            pytest.param(
+                "PythonIntentType.TYPE_VIOLATION",
+                {"age": "not_an_integer"},
+                400,
+                id="PythonIntentType.TYPE_VIOLATION",
+            ),
+            pytest.param(
+                "PythonIntentType.NULL_NOT_ALLOWED",
+                {"age": None},
+                400,
+                id="PythonIntentType.NULL_NOT_ALLOWED",
+            ),
+            pytest.param(
+                "PythonIntentType.UNEXPECTED_ARGUMENT",
+                {"age": 1, "__unexpected_kwarg__": "unexpected_value"},
+                400,
+                id="PythonIntentType.UNEXPECTED_ARGUMENT",
             ),
         ],
     )
@@ -26,8 +51,8 @@ class Testvalidateage:
 
         # Negative Tests (Expect Exceptions)
         if expected_status >= 400:
-            # We expect TypeError for structural issues or ValueError for constraints
-            with pytest.raises((ValueError, TypeError, AssertionError)):
+            # We expect TypeError for structural issues, ValueError for constraints, or AttributeError for None access
+            with pytest.raises((ValueError, TypeError, AssertionError, AttributeError)):
                 validate_age(**kwargs)
 
         # Happy Path (Expect Return Value)

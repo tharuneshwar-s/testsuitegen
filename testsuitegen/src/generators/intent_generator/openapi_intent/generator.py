@@ -22,6 +22,11 @@ class IntentGenerator:
         self.OK = self._get_success_status()
         self.ERR = self._get_error_status()
 
+        # Track required fields for determining expected status
+        self.required_fields = (
+            set(self.schema.get("required", [])) if self.schema else set()
+        )
+
         self.intents = []
 
     def generate(self) -> list[dict]:
@@ -76,13 +81,14 @@ class IntentGenerator:
 
         return self.ERR
 
-    def _is_security_test_applicable(self, prop: dict) -> bool:
+    def _is_security_test_applicable(self, prop: dict, field_name: str = None) -> bool:
         """
         Prevents Intent Explosion by filtering security tests.
         Only tests injection if the field is 'open' enough to accept malicious input.
 
         Args:
             prop: The property schema
+            field_name: Optional field name to check if it's required
 
         Returns:
             True if security testing is applicable, False otherwise
@@ -103,6 +109,24 @@ class IntentGenerator:
         # 4. Skip if strict pattern (Regex likely blocks injection)
         if "pattern" in prop:
             return False
+
+        # 5. Skip required fields without explicit security hints
+        # Required fields like "full_name", "title" etc. rarely have security validators
+        # unless the description explicitly mentions security concerns
+        if field_name and field_name in self.required_fields:
+            description = prop.get("description", "").lower()
+            # Only apply security tests if description hints at security concerns
+            security_keywords = [
+                "user input",
+                "sanitize",
+                "validate",
+                "xss",
+                "sql",
+                "injection",
+                "vulnerable",
+            ]
+            if not any(keyword in description for keyword in security_keywords):
+                return False
 
         return True
 
@@ -445,6 +469,18 @@ class IntentGenerator:
             # Type-specific validations
             prop_type = prop.get("type")
 
+            # Handle anyOf nullable patterns (e.g., anyOf: [{type: string}, {type: null}])
+            if "anyOf" in prop and not prop_type:
+                # Find the non-null type in the anyOf
+                for variant in prop["anyOf"]:
+                    if variant.get("type") == "string":
+                        prop_type = "string"
+                        # Merge constraints from the variant into prop for processing
+                        merged_prop = {**prop, **variant}
+                        self._process_string_field(field_path, name, merged_prop)
+                        prop_type = None  # Don't process again below
+                        break
+
             if prop_type == "string":
                 self._process_string_field(field_path, name, prop)
             elif prop_type in ["integer", "number"]:
@@ -468,7 +504,9 @@ class IntentGenerator:
         # String fields accept any string, so TYPE_VIOLATION doesn't apply to them
         prop_type = prop.get("type")
         if prop_type in ["integer", "number", "boolean"] or "enum" in prop:
-            self._emit(OpenAPISpecIntentType.TYPE_VIOLATION.value, field_path, field=name)
+            self._emit(
+                OpenAPISpecIntentType.TYPE_VIOLATION.value, field_path, field=name
+            )
 
         # Union types
         if "oneOf" in prop:
@@ -533,6 +571,20 @@ class IntentGenerator:
         self, field_path: str, name: str, prop: dict
     ) -> None:
         """Processes minLength and maxLength boundaries."""
+        is_required = name in self.required_fields
+        is_anyof = "anyOf" in prop
+        has_pattern = "pattern" in prop
+        has_maxlength_only = "maxLength" in prop and "minLength" not in prop
+
+        # Check for pattern in anyOf variants
+        if is_anyof:
+            for variant in prop["anyOf"]:
+                if "pattern" in variant:
+                    has_pattern = True
+                # Check if any variant has constraints we can use
+                if "maxLength" in variant and "minLength" not in variant:
+                    has_maxlength_only = True
+
         if "minLength" in prop:
             if prop["minLength"] > 0:
                 self._emit(
@@ -542,11 +594,41 @@ class IntentGenerator:
                     notes=f"Len: {prop['minLength']}-1",
                 )
             else:
+                # minLength=0 means empty string is valid
                 self._emit(
-                    OpenAPISpecIntentType.EMPTY_STRING.value, field_path, field=name
+                    OpenAPISpecIntentType.EMPTY_STRING.value,
+                    field_path,
+                    field=name,
+                    expected=self.OK,
                 )
         elif prop.get("nullable") is not False:
-            self._emit(OpenAPISpecIntentType.EMPTY_STRING.value, field_path, field=name)
+            # Determine expected status for EMPTY_STRING test
+            if has_pattern:
+                # Empty string won't match the pattern
+                expected = self.ERR
+                self._emit(
+                    OpenAPISpecIntentType.EMPTY_STRING.value,
+                    field_path,
+                    field=name,
+                    expected=expected,
+                )
+            elif is_anyof and not has_maxlength_only:
+                # Skip EMPTY_STRING for anyOf fields without maxLength constraint
+                # These have unpredictable behavior (might have custom validators)
+                pass
+            elif not is_required:
+                # Skip EMPTY_STRING for optional fields without explicit minLength=0
+                # Many APIs have custom validation that rejects empty strings even for
+                # optional fields, making behavior unpredictable. Only test empty strings
+                # when minLength=0 is explicitly set (handled above).
+                pass
+            else:
+                self._emit(
+                    OpenAPISpecIntentType.EMPTY_STRING.value,
+                    field_path,
+                    field=name,
+                    expected=self.ERR,
+                )
 
         if "maxLength" in prop:
             self._emit(
@@ -561,7 +643,7 @@ class IntentGenerator:
     ) -> None:
         """Processes security fuzzing tests for strings with noise reduction."""
         # Use intelligent filter to avoid test explosion
-        if self._is_security_test_applicable(prop):
+        if self._is_security_test_applicable(prop, field_name=name):
             self._emit(
                 OpenAPISpecIntentType.SQL_INJECTION.value, field_path, field=name
             )

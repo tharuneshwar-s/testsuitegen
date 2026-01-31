@@ -19,6 +19,39 @@ from testsuitegen.src.llm_enhancer.circuit_breaker import circuit_breaker
 from testsuitegen.src.exceptions.exceptions import LLMError
 
 
+def _strip_invalid_enum_markers(schema: dict, valid_types: set) -> dict:
+    """
+    Recursively remove x-enum-type markers that reference non-existent types.
+
+    This fixes LLM hallucination where it invents types like 'Username', 'Password'
+    that don't actually exist in the source code.
+    """
+    if not isinstance(schema, dict):
+        return schema
+
+    # Remove invalid x-enum-type at this level
+    if "x-enum-type" in schema:
+        if schema["x-enum-type"] not in valid_types:
+            del schema["x-enum-type"]
+
+    # Recurse into properties
+    if "properties" in schema:
+        for prop_name, prop_schema in schema["properties"].items():
+            _strip_invalid_enum_markers(prop_schema, valid_types)
+
+    # Recurse into items (for arrays)
+    if "items" in schema and isinstance(schema["items"], dict):
+        _strip_invalid_enum_markers(schema["items"], valid_types)
+
+    # Recurse into oneOf/anyOf
+    for variant_key in ("oneOf", "anyOf"):
+        if variant_key in schema:
+            for variant in schema[variant_key]:
+                _strip_invalid_enum_markers(variant, valid_types)
+
+    return schema
+
+
 def enhance_ir_schema(
     ir_operation: dict,
     source_code: str,
@@ -155,6 +188,11 @@ def enhance_ir_schema(
                     f"      ⚠ Structure validation failed. Retrying... Attempt {attempt}"
                 )
                 raise ValueError("LLM changed schema structure")
+
+            # 4.5 Strip invalid x-enum-type markers (LLM hallucination fix)
+            # Build set of valid type names from the types list passed in
+            valid_type_names = {t.get("id") for t in types if t.get("id")}
+            _strip_invalid_enum_markers(enhanced_schema, valid_type_names)
 
             # 4. SUCCESS: Apply enhancements
             # Extract metadata if provided by LLM

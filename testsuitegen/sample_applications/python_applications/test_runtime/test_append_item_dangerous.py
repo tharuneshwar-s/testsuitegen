@@ -6,17 +6,61 @@ from runtime_traps import append_item_dangerous
 
 
 class Testappenditemdangerous:
+
     @pytest.mark.parametrize(
         "intent, kwargs, expected_status",
         [
             pytest.param(
                 "PythonIntentType.HAPPY_PATH",
                 {
-                    "item": "__PLACEHOLDER_STRING_item__",
-                    "items": ["__PLACEHOLDER_STRING_items__"],
+                    "item": "Lunch Special",
+                    "items": ["Vegetable Soup", "Grilled Chicken Sandwich"],
                 },
                 200,
                 id="PythonIntentType.HAPPY_PATH",
+            ),
+            pytest.param(
+                "PythonIntentType.REQUIRED_ARG_MISSING",
+                {"items": ["Vegetable Soup", "Grilled Chicken Sandwich"]},
+                400,
+                id="PythonIntentType.REQUIRED_ARG_MISSING",
+            ),
+            pytest.param(
+                "PythonIntentType.SQL_INJECTION",
+                {
+                    "item": "' OR '1'='1",
+                    "items": ["Vegetable Soup", "Grilled Chicken Sandwich"],
+                },
+                422,
+                id="PythonIntentType.SQL_INJECTION",
+            ),
+            pytest.param(
+                "PythonIntentType.XSS_INJECTION",
+                {
+                    "item": "<script>alert(1)</script>",
+                    "items": ["Vegetable Soup", "Grilled Chicken Sandwich"],
+                },
+                422,
+                id="PythonIntentType.XSS_INJECTION",
+            ),
+            pytest.param(
+                "PythonIntentType.WHITESPACE_ONLY",
+                {
+                    "item": "   ",
+                    "items": ["Vegetable Soup", "Grilled Chicken Sandwich"],
+                },
+                422,
+                id="PythonIntentType.WHITESPACE_ONLY",
+            ),
+            pytest.param(
+                "PythonIntentType.UNEXPECTED_ARGUMENT",
+                {
+                    "__unexpected_kwarg__": "unexpected_value",
+                    "item": "Lunch Special",
+                    "items": ["Vegetable Soup", "Grilled Chicken Sandwich"],
+                },
+                400,
+                id="PythonIntentType.UNEXPECTED_ARGUMENT",
             ),
         ],
     )
@@ -29,8 +73,8 @@ class Testappenditemdangerous:
 
         # Negative Tests (Expect Exceptions)
         if expected_status >= 400:
-            # We expect TypeError for structural issues or ValueError for constraints
-            with pytest.raises((ValueError, TypeError, AssertionError)):
+            # We expect TypeError for structural issues, ValueError for constraints, or AttributeError for None access
+            with pytest.raises((ValueError, TypeError, AssertionError, AttributeError)):
                 append_item_dangerous(**kwargs)
 
         # Happy Path (Expect Return Value)

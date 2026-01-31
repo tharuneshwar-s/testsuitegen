@@ -6,6 +6,7 @@ from robustness_edge import calculate_average
 
 
 class Testcalculateaverage:
+
     @pytest.mark.parametrize(
         "intent, kwargs, expected_status",
         [
