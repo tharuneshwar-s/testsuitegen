@@ -205,5 +205,4 @@ The test rendering stage uses a **deterministic sub-pipeline** for API tests:
 - [ ] **MCP Server Integration**: Generate test suites directly from your IDE using the Model Context Protocol.
 - [ ] **Export Options**: Support for exporting generated tests to Postman Collections, Bruno, and Insomnia.
 - [ ] **Continuous Integration**: GitHub Actions and GitLab CI integrations for automated test suite updates.
-- [ ] **Coverage Analysis**: Fine-tuned feedback loops to generate tests targeting specific missing coverage gaps.
 - [ ] **Custom Templates**: Expanded support for more languages and custom user-defined test templates.
