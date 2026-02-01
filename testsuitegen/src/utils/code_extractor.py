@@ -1,9 +1,6 @@
 import ast
 import logging
-from typing import Optional
 from testsuitegen.src.utils.tree_sitter_loader import get_parser
-from tree_sitter import Language, Node
-import tree_sitter_typescript
 
 logger = logging.getLogger(__name__)
 
@@ -77,85 +74,6 @@ def _extract_python_context(source_code: str, target_function_name: str) -> str:
     except Exception as e:
         logger.error(f"Error parsing Python source: {e}")
         return source_code
-
-
-# def _extract_typescript_context(source_code: str, target_function_name: str) -> str:
-#     try:
-#         parser = get_parser("typescript")
-
-#         ts_language = Language(tree_sitter_typescript.language_typescript())
-
-#         tree = parser.parse(bytes(source_code, "utf8"))
-#         root_node = tree.root_node
-
-#         # Query to find relevant top-level nodes
-#         # We want: interfaces, type aliases, classes, imports, and the specific function/method
-#         query_scm = """
-#         (interface_declaration) @interface
-#         (type_alias_declaration) @type
-#         (class_declaration) @class
-#         (enum_declaration) @enum
-#         (import_statement) @import
-#         (function_declaration name: (identifier) @func_name) @func
-#         (export_statement
-#             declaration: (function_declaration name: (identifier) @exp_func_name) @exp_func
-#         )
-#         """
-
-#         query = ts_language.query(query_scm)
-#         captures = query.captures(root_node)
-
-#         relevant_ranges = []
-#         target_found = False
-
-#         # Helper to get code from node
-#         def get_node_text(node: Node) -> str:
-#             return source_code[node.start_byte : node.end_byte]
-
-#         # First pass: Collect all types/imports, check for target function
-#         nodes_to_keep = []
-
-#         for node, capture_name in captures:
-#             if capture_name in ["interface", "type", "class", "enum", "import"]:
-#                 nodes_to_keep.append(node)
-
-#             elif capture_name == "func_name":
-#                 if get_node_text(node) == target_function_name:
-#                     # Parent is the function declaration
-#                     nodes_to_keep.append(node.parent)
-#                     target_found = True
-
-#             elif capture_name == "exp_func_name":
-#                 if get_node_text(node) == target_function_name:
-#                     # Grandparent is export -> function
-#                     nodes_to_keep.append(
-#                         node.parent.parent
-#                     )  # @exp_func is export_statement
-#                     target_found = True
-
-#         if not target_found:
-#             # Try searching methods inside classes if not found globally?
-#             # For now, simplistic approach: if not found, return full source
-#             logger.warning(
-#                 f"Target function '{target_function_name}' not found in TS source. Returning full source."
-#             )
-#             return source_code
-
-#         # De-duplicate nodes and sort by position
-#         unique_nodes = sorted(list(set(nodes_to_keep)), key=lambda n: n.start_byte)
-
-#         # Merge overlapping/adjacent ranges?
-#         # Ideally just print them separated by newlines
-
-#         extracted_parts = []
-#         for node in unique_nodes:
-#             extracted_parts.append(get_node_text(node))
-
-#         return "\n\n".join(extracted_parts)
-
-#     except Exception as e:
-#         logger.error(f"Error parsing TypeScript source: {e}")
-#         return source_code
 
 
 def _extract_typescript_context(source_code: str, target_function_name: str) -> str:

@@ -372,13 +372,3 @@ if __name__ == "__main__":
         # "input_parser/openapi_parser/examples/openapi_hard.yaml",
         "test.yaml"
     ]
-
-    for path in filepath:
-        print(f"Parsing {path}...")
-        with open(path, "r") as f:
-            raw = f.read()
-
-        parser = Parser(raw)
-
-        parsed_spec = parser.parse()
-        print(json.dumps(parsed_spec, indent=2))

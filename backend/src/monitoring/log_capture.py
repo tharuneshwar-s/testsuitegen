@@ -1,5 +1,3 @@
-import sys
-import io
 from typing import TextIO
 from backend.src.database.store import _add_log
 

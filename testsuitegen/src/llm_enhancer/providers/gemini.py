@@ -1,7 +1,6 @@
 """Google Gemini provider using official SDK."""
 
 import time
-from typing import Optional
 from testsuitegen.src.llm_enhancer.providers.base import BaseLLMProvider
 
 

@@ -608,7 +608,6 @@ class TestSuiteGenerator:
         package_json_path = os.path.join(jest_dir, "package.json")
         with open(package_json_path, "w", encoding="utf-8") as f:
             json.dump(package_json, f, indent=2)
-        print(f"[OK] Generated: {package_json_path}")
 
         # Generate jest.config.js with ts-jest preset
         jest_config = """/** @type {import('ts-jest').JestConfigWithTsJest} */
@@ -627,7 +626,6 @@ module.exports = {
         jest_config_path = os.path.join(jest_dir, "jest.config.js")
         with open(jest_config_path, "w", encoding="utf-8") as f:
             f.write(jest_config)
-        print(f"[OK] Generated: {jest_config_path}")
 
         # Generate tsconfig.json for TypeScript configuration
         tsconfig = {
@@ -651,7 +649,6 @@ module.exports = {
         tsconfig_path = os.path.join(jest_dir, "tsconfig.json")
         with open(tsconfig_path, "w", encoding="utf-8") as f:
             json.dump(tsconfig, f, indent=2)
-        print(f"[OK] Generated: {tsconfig_path}")
 
     def _write_file(
         self,
@@ -667,9 +664,6 @@ module.exports = {
 
         content_to_write = content
         if self.llm_provider:
-            print(
-                f"Enhancing code {filename} with LLM using provider: {self.llm_provider}:{self.llm_model or 'default'}..."
-            )
             try:
                 if framework == "jest":
                     content_to_write = enhance_code_ts(
@@ -687,9 +681,6 @@ module.exports = {
                     )
             except Exception as e:
                 # Rate limits or API failures: fall back to unenhanced code and disable LLM for subsequent files
-                print(
-                    f"LLM enhancement skipped: {e}. Writing unenhanced code and disabling LLM for remaining tests."
-                )
                 self.llm_provider = None
 
         with open(filepath, "w", encoding="utf-8") as f:
@@ -704,12 +695,8 @@ module.exports = {
                 try:
                     py_compile.compile(filepath, doraise=True)
                 except py_compile.PyCompileError as ce:
-                    print(
-                        f"[WARN] Skipping black formatting for {filename}: invalid Python syntax: {ce}"
-                    )
+                    pass
                 else:
                     subprocess.run(["black", filepath], check=True)
             except Exception as e:
-                print(f"[WARN] Could not format {filename} with black: {e}")
-
-        print(f"[OK] Generated: {filepath}")
+                pass

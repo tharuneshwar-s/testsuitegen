@@ -203,6 +203,8 @@ def example_20_literal_like_function(mode: Union[str, int]) -> str:
 
 # Example 21: Enum Definition
 import enum
+
+
 class Color(enum.Enum):
     RED = 1
     GREEN = 2
@@ -211,6 +213,8 @@ class Color(enum.Enum):
 
 # Example 22: Dataclass Definition
 from dataclasses import dataclass
+
+
 @dataclass
 class UserInfo:
     id: int
@@ -218,8 +222,10 @@ class UserInfo:
     email: str
     is_active: bool = True
 
+
 # Example 23: Pydantic Model
 from pydantic import BaseModel
+
 
 class Product(BaseModel):
     name: str
@@ -261,7 +267,11 @@ if __name__ == "__main__":
         ("product_model", Product),
     ]
 
+
+def run_examples():
+    """Run all examples and print results."""
     import json
+    from .parser import parse_python_function
 
     for name, func in examples:
         try:
@@ -271,3 +281,7 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"\n=== {name} ===")
             print(f"Error parsing {name}: {e}")
+
+
+if __name__ == "__main__":
+    run_examples()

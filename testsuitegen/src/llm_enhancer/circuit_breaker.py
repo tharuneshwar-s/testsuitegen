@@ -15,16 +15,11 @@ class LLMCircuitBreaker:
     def record_success(self):
         self.consecutive_failures = 0
         self.is_open = False
-        print("Circuit Breaker: Success recorded. Circuit is CLOSED.")
 
     def record_failure(self):
         self.consecutive_failures += 1
         if self.consecutive_failures >= self.failure_threshold:
             self.is_open = True
-            print(
-                f"Circuit Breaker TRIPPED: {self.consecutive_failures} consecutive failures. "
-                "Stopping LLM calls for this session."
-            )
             raise LLMError(
                 f"Circuit Breaker Tripped: LLM failed {self.consecutive_failures} times consecutively."
             )

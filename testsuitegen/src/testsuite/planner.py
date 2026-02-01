@@ -5,7 +5,7 @@ Plans the test data setup based on analysis results.
 Determines exactly what resources need to be created and in what order.
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from dataclasses import dataclass, field
 
 from testsuitegen.src.testsuite.analyzer import TestAnalysis, ResourceRequirement

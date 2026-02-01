@@ -35,7 +35,7 @@ async def create_job(request: Request, job: JobRequest):
 
 
 @router.get("/jobs/{job_id}", response_model=JobStatusResponse)
-async def get_job_status(job_id: str, request: Request):
+async def get_job_status(job_id: str):
     """Get current job status."""
     try:
         job_data = await get_job_status_data(job_id)

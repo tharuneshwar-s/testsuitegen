@@ -131,14 +131,7 @@ def enhance_code(
     try:
         circuit_breaker.check_state()
     except LLMError as e:
-        print(
-            f"⚠ Circuit Breaker blocking LLM call for test code enhancement. Returning original code."
-        )
         return code
-
-    print(
-        f"▶ Enhancing code with LLM ({test_type} mode) using provider: {provider or 'default'}:{model or 'default'}..."
-    )
 
     # Prepare prompt based on test type
     if test_type == "unit":
@@ -151,9 +144,6 @@ def enhance_code(
     # 2. Exponential Backoff Retry Loop
     for attempt in range(1, max_retries + 1):
         try:
-            print(
-                f"   LLM Attempt {attempt}/{max_retries} for test code enhancement..."
-            )
 
             # Progressive Backoff Temperature: Increase temp by 0.1 for each retry to break loops
             base_temp = 0.01
@@ -171,18 +161,12 @@ def enhance_code(
 
             # Check if response looks like Python code
             if not enhanced or len(enhanced.strip()) < 10:
-                print(
-                    f"   ⚠ LLM returned empty or too short response. Retrying... Attempt {attempt}"
-                )
                 raise ValueError("Empty or invalid response from LLM")
 
             # Check for common hallucination patterns
             if enhanced.strip().startswith(
                 ("Here", "Sure", "I'll", "Let me", "The code")
             ):
-                print(
-                    f"   ⚠ LLM returned text instead of code. Retrying... Attempt {attempt}"
-                )
                 raise ValueError("LLM returned explanation text instead of code")
 
             # Validate no logic changes
@@ -191,42 +175,29 @@ def enhance_code(
             except RuntimeError as validation_error:
                 # Check if it's beneficial changes only
                 if _is_beneficial_only_change(code, enhanced):
-                    print(
-                        f"   ⚠ Validation warning (but allowing beneficial changes): {validation_error}"
-                    )
+                    pass
                 else:
-                    print(
-                        f"   ⚠ Logic validation failed. Retrying... Attempt {attempt}"
-                    )
                     raise ValueError(f"Logic change detected: {validation_error}")
 
             # 4. SUCCESS: Record Success and Return
             circuit_breaker.record_success()
-            print(f"   ✨ Test code enhancement successful")
             return enhanced
 
         except ValueError as ve:
             # Validation errors
-            print(f"   ⚠ Validation Error: {ve}")
             if attempt == max_retries:
-                print(
-                    f"   ❌ Max retries ({max_retries}) reached for validation errors."
-                )
                 circuit_breaker.record_failure()
                 return code
             time.sleep(2**attempt)  # Exponential backoff
 
         except LLMFatalError as lf:
             # Non-retryable policy/config error from provider - abort immediately
-            print(f"   ⚠ Non-retryable LLM error: {lf}. Aborting code enhancement.")
             circuit_breaker.record_failure()
             return code
 
         except Exception as e:
             # Transient errors
-            print(f"   ⚠ LLM API Error (Attempt {attempt}): {e}")
             if attempt == max_retries:
-                print(f"   ❌ Max retries ({max_retries}) reached for API errors.")
                 circuit_breaker.record_failure()
                 return code
             time.sleep(EXPONENTIAL_BACKOFF_BASE**attempt)  # Exponential backoff

@@ -25,7 +25,6 @@ def validate_ir_enhancement_flexible(original: dict, enhanced: dict) -> bool:
 
         for prop_name, orig_prop in original["properties"].items():
             if prop_name not in enhanced["properties"]:
-                print(f"      [Validation] Missing property: {prop_name}")
                 return False
 
             enh_prop = enhanced["properties"][prop_name]

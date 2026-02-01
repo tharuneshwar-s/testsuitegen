@@ -5,7 +5,7 @@ Compiles setup plans into actual Python fixture code.
 This is pure code generation - no LLM involved.
 """
 
-from typing import List, Dict, Any
+from typing import List
 import json
 
 from testsuitegen.src.testsuite.planner import SetupPlan, SetupStep, TeardownStep

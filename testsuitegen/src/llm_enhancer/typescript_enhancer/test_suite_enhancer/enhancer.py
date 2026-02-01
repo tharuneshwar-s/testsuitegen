@@ -115,14 +115,7 @@ def enhance_code(
     try:
         circuit_breaker.check_state()
     except LLMError as e:
-        print(
-            f"⚠ Circuit Breaker blocking LLM call for test code enhancement. Returning original code."
-        )
         return code
-
-    print(
-        f"▶ Enhancing TypeScript code with LLM ({test_type} mode) using provider: {provider or 'default'}:{model or 'default'}..."
-    )
 
     # Prepare prompt based on test type
     if test_type == "unit":
@@ -135,9 +128,6 @@ def enhance_code(
     # 2. Exponential Backoff Retry Loop
     for attempt in range(1, max_retries + 1):
         try:
-            print(
-                f"   LLM Attempt {attempt}/{max_retries} for test code enhancement..."
-            )
 
             # Progressive Backoff Temperature: Increase temp by 0.1 for each retry to break loops
             base_temp = 0.01
@@ -155,26 +145,17 @@ def enhance_code(
 
             # Check if cleaning failed (returned None means corrupted code)
             if enhanced is None:
-                print(
-                    f"   ⚠ LLM returned partial/corrupted code (invalid start). Retrying... Attempt {attempt}"
-                )
                 continue
                 # raise ValueError("LLM returned partial or corrupted code")
 
             # Check if response looks like code (length check)
             if not enhanced or len(enhanced.strip()) < 10:
-                print(
-                    f"   ⚠ LLM returned empty or too short response. Retrying... Attempt {attempt}"
-                )
                 raise ValueError("Empty or invalid response from LLM")
 
             # Check for common hallucination patterns
             if enhanced.strip().startswith(
                 ("Here", "Sure", "I'll", "Let me", "The code")
             ):
-                print(
-                    f"   ⚠ LLM returned text instead of code. Retrying... Attempt {attempt}"
-                )
                 raise ValueError("LLM returned explanation text instead of code")
 
             # CRITICAL: Check for forbidden patterns that corrupt the code
@@ -194,39 +175,31 @@ def enhance_code(
             ]
             for pattern in forbidden_patterns:
                 if pattern in enhanced:
-                    print(
-                        f"   ⚠ LLM added forbidden pattern '{pattern}'. Rejecting. Attempt {attempt}"
-                    )
                     raise ValueError(f"LLM added forbidden pattern: {pattern}")
 
             # Validate no logic changes
             try:
                 validate_no_logic_change(original=code, enhanced=enhanced)
             except RuntimeError as validation_error:
-                print(f"   ⚠ Logic validation failed. Retrying... Attempt {attempt}")
                 raise ValueError(f"Logic change detected: {validation_error}")
 
             # 4. SUCCESS: Record Success and Return
             circuit_breaker.record_success()
-            print(f"   ✨ Test code enhancement successful")
             return enhanced
 
         except ValueError as ve:
             # Validation errors
-            print(f"   ⚠ Validation Error: {ve}")
             if attempt == max_retries:
                 circuit_breaker.record_failure()
                 return code
             time.sleep(2**attempt)
 
         except LLMFatalError as lf:
-            print(f"   ⚠ Non-retryable LLM error: {lf}. Aborting code enhancement.")
             circuit_breaker.record_failure()
             return code
 
         except Exception as e:
             # Transient errors
-            print(f"   ⚠ LLM API Error (Attempt {attempt}): {e}")
             if attempt == max_retries:
                 circuit_breaker.record_failure()
                 return code

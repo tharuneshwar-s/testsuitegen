@@ -90,9 +90,6 @@ def enhance_ir_schema(
     try:
         circuit_breaker.check_state()
     except LLMError as e:
-        print(
-            f"      ⚠ Circuit Breaker blocking LLM call for {operation_id}. Returning original IR."
-        )
         return ir_operation
 
     schema = ir_operation["inputs"]["body"]["schema"]
@@ -110,7 +107,6 @@ def enhance_ir_schema(
     # 2. Exponential Backoff Retry Loop
     for attempt in range(1, max_retries + 1):
         try:
-            print(f"      LLM Attempt {attempt}/{max_retries} for {operation_id}...")
 
             kwargs = {"chat_template_kwargs": {"enable_thinking": False}}
             kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": False}}
@@ -157,9 +153,6 @@ def enhance_ir_schema(
                 if start != -1 and end != -1:
                     enhanced_text = enhanced_text[start : end + 1]
                 else:
-                    print(
-                        f"      ⚠ LLM returned non-JSON response. Retrying... Attempt {attempt}"
-                    )
                     raise ValueError("Response did not contain valid JSON object")
 
             # Parse JSON
@@ -173,20 +166,11 @@ def enhance_ir_schema(
                         r'\\(?![/u"\\bfnrt])', r"\\\\", enhanced_text
                     )
                     enhanced_schema = json.loads(repaired_text)
-                    print(
-                        f"      ✨ JSON repaired successfully (fixed invalid escapes)"
-                    )
                 except Exception as repair_error:
-                    print(
-                        f"      ⚠ LLM returned invalid JSON: {e}. Repair failed: {repair_error}. Retrying... Attempt {attempt}"
-                    )
                     raise ValueError(f"Invalid JSON returned: {e}")
 
             # Validate structure using FLEXIBLE validator
             if not validate_ir_enhancement_flexible(schema, enhanced_schema):
-                print(
-                    f"      ⚠ Structure validation failed. Retrying... Attempt {attempt}"
-                )
                 raise ValueError("LLM changed schema structure")
 
             # 4.5 Strip invalid x-enum-type markers (LLM hallucination fix)
@@ -203,25 +187,18 @@ def enhance_ir_schema(
             ir_operation["inputs"]["body"]["schema"] = enhanced_schema
 
             circuit_breaker.record_success()
-            print(f"      ✨ Schema enhanced successfully with type resolution")
             return ir_operation
 
         except ValueError as ve:
             # Validation errors
-            print(f"      ⚠ Validation Error: {ve}")
             if attempt == max_retries:
-                print(
-                    f"      ❌ Max retries ({max_retries}) reached for validation errors."
-                )
                 circuit_breaker.record_failure()
                 return ir_operation
             time.sleep(EXPONENTIAL_BACKOFF_BASE**attempt)  # Exponential backoff
 
         except Exception as e:
             # Transient errors
-            print(f"      ⚠ LLM API Error (Attempt {attempt}): {e}")
             if attempt == max_retries:
-                print(f"      ❌ Max retries ({max_retries}) reached for API errors.")
                 circuit_breaker.record_failure()
                 return ir_operation
             time.sleep(EXPONENTIAL_BACKOFF_BASE**attempt)  # Exponential backoff

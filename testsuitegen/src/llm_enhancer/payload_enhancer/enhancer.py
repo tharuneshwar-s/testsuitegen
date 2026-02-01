@@ -63,9 +63,6 @@ def enhance_payload(
     try:
         circuit_breaker.check_state()
     except LLMError as e:
-        print(
-            f"Circuit Breaker blocking LLM call for {operation_id}. Returning raw payload."
-        )
         return payload
 
     # Build schema context if available
@@ -79,14 +76,10 @@ def enhance_payload(
         .replace("{schema_info}", schema_context)
         .replace("{payload}", json.dumps(payload, indent=2))
     )
-    print(
-        f"Sending payload to LLM for enhancement with {provider or 'default'}:{model or 'default'}..."
-    )
 
     # 2. Exponential Backoff Retry Loop
     for attempt in range(1, max_retries + 1):
         try:
-            print(f"LLM Attempt {attempt}/{max_retries} for {operation_id}...")
 
             # Progressive Backoff Temperature: Increase temp by 0.1 for each retry to break loops
             base_temp = 0.01
@@ -113,18 +106,12 @@ def enhance_payload(
 
             # Check if response starts with valid JSON
             if not enhanced_text.startswith(("{", "[")):
-                print(
-                    f"   LLM returned non-JSON header (Hallucination). Retrying... Attempt {attempt}"
-                )
                 raise ValueError("Response did not start with JSON object/array")
 
             # Parse JSON
             try:
                 enhanced = json.loads(enhanced_text)
             except json.JSONDecodeError as e:
-                print(
-                    f"   LLM returned invalid JSON: {e}. Retrying... Attempt {attempt}"
-                )
                 raise ValueError(f"Invalid JSON returned: {e}")
 
             # Handle case where enhanced is an array of objects with a 'payload' key
@@ -139,44 +126,32 @@ def enhance_payload(
 
             # Validate structure
             if not validate_payload_structure(payload, enhanced):
-                print(f"   Structure validation failed. Retrying... Attempt {attempt}")
                 raise ValueError(f"Structure changed for operation {operation_id}")
 
             # Check if placeholders were actually replaced
             enhanced_str = json.dumps(enhanced)
             if "__PLACEHOLDER_" in enhanced_str:
-                print(
-                    f"   LLM did not replace placeholders. Retrying... Attempt {attempt}"
-                )
                 raise ValueError("Placeholders not replaced")
 
             # 4. SUCCESS: Record Success and Return
             circuit_breaker.record_success()
-            print(f"   LLM Enhancement successful for {operation_id}")
             return enhanced
 
         except ValueError as ve:
             # Validation errors (JSON, structure, placeholders)
-            print(f"   Validation Error: {ve}")
             if attempt == max_retries:
-                print(f"   Max retries ({max_retries}) reached for validation errors.")
                 circuit_breaker.record_failure()
                 return payload
             time.sleep(2**attempt)  # Exponential backoff: 2s, 4s, 8s
 
         except LLMFatalError as lf:
             # Non-retryable policy/config error from provider - abort immediately
-            print(
-                f"   Non-retryable LLM error: {lf}. Aborting enhancement for {operation_id}."
-            )
             circuit_breaker.record_failure()
             return payload
 
         except Exception as e:
             # Transient network/API errors
-            print(f"   LLM API Error (Attempt {attempt}): {e}")
             if attempt == max_retries:
-                print(f"   Max retries ({max_retries}) reached for API errors.")
                 circuit_breaker.record_failure()
                 return payload
             time.sleep(EXPONENTIAL_BACKOFF_BASE**attempt)  # Exponential backoff

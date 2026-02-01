@@ -5,7 +5,7 @@ Analyzes IR and payloads to determine which tests require prerequisite resources
 This is deterministic - no LLM involved.
 """
 
-from typing import List, Dict, Any, Set
+from typing import List, Dict, Any
 from dataclasses import dataclass, field
 import logging
 
